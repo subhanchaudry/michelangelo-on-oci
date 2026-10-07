@@ -16,6 +16,24 @@ This repository contains deployment source for an internal pilot or customer eva
 
 The `all-in-one/installer/release/platform/releases/v0.11.0/` directory supplies compatibility build helpers and example runtime assets. It does not select the active application version; that is pinned in `all-in-one/installer/sources/v0.12.0/manifest.json`.
 
+## Reference architecture
+
+![Michelangelo on OCI: public load balancer and IAM sign-in, private OKE application and ML workloads, MySQL, Object Storage, OCIR, and installer host](docs/architecture.svg)
+
+Open the [architecture guide](docs/architecture.md) for request and deployment flows, source references and scope. The [PNG](docs/architecture.png) supports presentations; the [SVG](docs/architecture.svg) preserves readable labels at full size. The diagram describes the **all-in-one** package, including its public build host and private OKE API. Foundation-only stacks install infrastructure separately from the application.
+
+## About upstream Michelangelo AI
+
+[Michelangelo AI](https://github.com/michelangelo-ai/michelangelo) is Uber's open-source ML platform. Its README describes training, evaluation, deployment, and monitoring capabilities, and marks the project as **beta**, with APIs and features subject to change. Python pipelines use `@task` and `@workflow` decorators.
+
+This OCI repository adds deployment infrastructure and integration overlays. Its installed profile uses Temporal, Ray, Triton, OCI IAM, MySQL, Object Storage and OCIR. The bundled monitoring stack is disabled; upstream capabilities are not an OCI acceptance guarantee. Use the pinned [v0.12.0 source](https://github.com/michelangelo-ai/michelangelo/tree/ed2a2b09ed9fab57e1479f45e84330a78f3ff8d3) when assessing compatibility; current upstream documentation may describe newer behavior.
+
+Useful upstream references, reviewed October 7, 2026:
+
+- [Project overview and local sandbox instructions](https://github.com/michelangelo-ai/michelangelo#readme), [documentation](https://michelangelo-ai.org/) and [Python examples](https://github.com/michelangelo-ai/michelangelo/tree/ed2a2b09ed9fab57e1479f45e84330a78f3ff8d3/python/examples).
+- [Contributing guidelines](https://github.com/michelangelo-ai/michelangelo/blob/main/CONTRIBUTING.md), [discussions](https://github.com/michelangelo-ai/michelangelo/discussions) and [security reporting](https://github.com/michelangelo-ai/michelangelo/blob/main/SECURITY.md).
+- [Upstream Apache-2.0 license](https://github.com/michelangelo-ai/michelangelo/blob/ed2a2b09ed9fab57e1479f45e84330a78f3ff8d3/LICENSE); dependencies retain their own licenses.
+
 ## Prerequisites
 
 - An OCI tenancy, its home region, an approved workload compartment, and capacity for the configured OKE nodes, build host, MySQL, volumes, public IP and load balancer. CPU defaults are in the Terraform files; GPU capacity is not required by the all-in-one profile.
@@ -100,7 +118,7 @@ After successful installation and verification, the build host can be stopped to
 
 ## Source changes and publication
 
-Only deployment source, dependency locks, packaging helpers and this README belong in this repository. Generated state, plans, credentials, site variables, Kubernetes configuration, logs, archives and acceptance evidence belong in protected storage outside it. Terraform state contains generated private keys and passwords even when outputs are marked sensitive. Restrict and encrypt state and backups; treat saved plans and installer configuration as secrets.
+Only deployment source, dependency locks, packaging helpers, reference documentation and this README belong in this repository. Generated state, plans, credentials, site variables, Kubernetes configuration, logs, archives and acceptance evidence belong in protected storage outside it. Terraform state contains generated private keys and passwords even when outputs are marked sensitive. Restrict and encrypt state and backups; treat saved plans and installer configuration as secrets.
 
 Before committing or releasing:
 

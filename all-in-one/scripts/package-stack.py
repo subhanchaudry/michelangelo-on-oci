@@ -11,6 +11,22 @@ import zipfile
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def documentation(repository):
+    """Keep the README's local diagram and guide links usable in every ZIP."""
+    names = ['README.md', 'docs/architecture.md', 'docs/architecture.svg',
+             'docs/architecture.png', 'docs/render-architecture.py']
+    files = {}
+    repository = repository.resolve()
+    for name in names:
+        path = repository / name
+        if path.is_symlink() or not path.resolve().is_relative_to(repository):
+            raise ValueError('Unsafe documentation path: ' + name)
+        if any(parent.is_symlink() for parent in path.parents if parent.is_relative_to(repository)):
+            raise ValueError('Symlinked documentation directory: ' + name)
+        files[name] = path.read_bytes()
+    return files
+
+
 def payload(root=ROOT):
     root = root.resolve()
     names = json.loads((root / 'PACKAGE-FILES.json').read_text())
@@ -37,7 +53,7 @@ def payload(root=ROOT):
     finally:
         sys.dont_write_bytecode = previous
     module.verify(root / 'installer/release')
-    files['README.md'] = (root.parent / 'README.md').read_bytes()
+    files.update(documentation(root.parent))
     for name, data in files.items():
         if any(b'-----BEGIN ' + kind + b'PRIVATE KEY-----' in data for kind in (b'', b'RSA ', b'EC ', b'OPENSSH ', b'ENCRYPTED ')):
             raise ValueError('Private key in package input: ' + name)
@@ -59,7 +75,7 @@ def foundation_payload(profile):
         if path.is_symlink() or not path.resolve().is_relative_to(root.resolve()):
             raise ValueError('Unsafe foundation path: ' + name)
         files[name] = path.read_bytes()
-    files['README.md'] = (ROOT.parent / 'README.md').read_bytes()
+    files.update(documentation(ROOT.parent))
     files['SOURCE-MANIFEST.json'] = (json.dumps({'profile': profile, 'files': {
         n: hashlib.sha256(v).hexdigest() for n, v in sorted(files.items())}}, indent=2) + '\n').encode()
     return files
