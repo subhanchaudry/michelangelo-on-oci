@@ -1,0 +1,32 @@
+# Deployment credentials and state belong outside the publication repository.
+**/.terraform/
+*.tfstate*
+*.tfplan
+*.plan
+*.tfvars
+*.tfvars.json
+!*.tfvars.example
+.env*
+*.pem
+*.key
+*.p12
+*.pfx
+**/.oci/
+**/.ssh/
+*kubeconfig*
+config.json
+credentials
+id_rsa*
+id_ed25519*
+# Keep dependency locks. Never commit generated packages, logs, or caches.
+*.zip
+*.tar
+*.tar.gz
+*.log
+*.pyc
+**/__pycache__/
+.DS_Store
+/dist/
+/output/
+/private/
+/all-in-one/SOURCE-MANIFEST.json

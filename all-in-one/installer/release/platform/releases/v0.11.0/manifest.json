@@ -1,0 +1,22 @@
+{
+  "release": "0.11.0-operator.3",
+  "repository": "https://github.com/michelangelo-ai/michelangelo.git",
+  "upstream_tag": "v0.11.0",
+  "upstream_commit": "37852aace4dd9f9658c11c19c56d19692ac5d2c4",
+  "patch": {
+    "file": "compatibility.patch",
+    "sha256": "feac4d9fda880b105c7d21342ac0035eebc818dfa6a3127dd792479fecb8094a"
+  },
+  "backports": {
+    "2141": "bc9ddf65266b267c1ca233e0c3fc4e4df872c5fa",
+    "2140": "67aaf62717c7f3b04f46d6a625467755b08650a2",
+    "2162": "fe2d1f4c2febfb316bf8f1deaeb5f308c8b15f36",
+    "2163": "201e2735d68f714a9f2d359e77a33fb236afcf3c",
+    "2152": "467430a29a6ea394a073b91f1995667f4e307b63"
+  },
+  "runtime_platform": "linux/amd64",
+  "node_version": "24.18.0",
+  "go_version": "1.26.8",
+  "production_ready": false,
+  "status": "compatibility-build-inputs; selected application source is installer/sources/v0.12.0"
+}

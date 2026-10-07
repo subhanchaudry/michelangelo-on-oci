@@ -1,0 +1,16 @@
+# Site configuration for the retained pilot backend, outside application source.
+# The selected nodes must be approved CPU nodes. Replace all placeholders.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: michelangelo-runtime-config
+  namespace: ma-system
+data:
+  MA_MODEL_DELIVERY_IMAGE: REPLACE_DELIVERY_IMAGE_DIGEST_URI
+  MA_MODEL_STORAGE_SECRET: michelangelo-runtime-artifacts
+  MA_MODEL_STORAGE_CONFIG: michelangelo-runtime-artifacts
+  MA_PILOT_NODE_SELECTOR: '{"REPLACE_CPU_NODE_LABEL":"REPLACE_CPU_NODE_VALUE"}'
+  MA_PILOT_NODE_TOLERATIONS: '[]'
+  MA_GATEWAY_NAMESPACE: REPLACE_PRIVATE_GATEWAY_NAMESPACE
+  MA_GATEWAY_CLUSTER_IP: 'true'
+  MA_PILOT_WORKFLOW_QUEUE: 'true'

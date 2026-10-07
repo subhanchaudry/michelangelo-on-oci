@@ -1,0 +1,21 @@
+# Copy into a PRIVATE extracted all-in-one package as terraform.tfvars.
+tenancy_ocid   = "ocid1.tenancy.oc1..example"
+compartment_id = "ocid1.compartment.oc1..example"
+region         = "us-chicago-1"
+home_region    = "REPLACE_WITH_TENANCY_HOME_REGION"
+environment    = "ma-pilot"
+admin_cidr     = "203.0.113.10/32"
+# Local Terraform needs direct SSH; Resource Manager uses its private endpoint.
+use_resource_manager_private_endpoint = false
+operator_ssh_public_key = ""
+auth_identity_domain_url = "https://REPLACE_WITH_YOUR_IDENTITY_DOMAIN"
+auth_authorized_emails   = ["operator@example.com"]
+auth_admin_emails        = ["operator@example.com"]
+auth_acme_email          = "operator@example.com"
+# Owned contact mailboxes for noninteractive machine identities.
+automation_user_email     = "automation-owner@example.com"
+runtime_reader_user_email = "runtime-owner@example.com"
+# Shared domain setting: review with the identity-domain administrator.
+enable_public_signing_certificate_access = true
+# Optional: point an owned DNS name at reserved_public_ip before TLS issuance.
+# public_hostname = "michelangelo.example.com"

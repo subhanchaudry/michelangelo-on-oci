@@ -1,0 +1,17 @@
+# Non-secret artifact settings. Instantiate in each consuming namespace.
+# For model delivery, match MA_MODEL_STORAGE_CONFIG and MA_MODEL_STORAGE_SECRET.
+# For the log reader, match the ConfigMap/Secret names in log-service.example.json.
+# Provision the corresponding Secret with your secret manager, containing only
+# AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY for the scoped artifact identity.
+# Do not use the registry credential or place credential values in this file.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: REPLACE_ARTIFACT_CONFIGURATION_NAME
+  namespace: REPLACE_CONSUMER_NAMESPACE
+data:
+  AWS_ENDPOINT_URL: https://REPLACE_OBJECT_NAMESPACE.compat.objectstorage.REPLACE_REGION.oraclecloud.com
+  AWS_REGION: REPLACE_REGION
+  AWS_S3_BUCKET: REPLACE_ARTIFACT_BUCKET
+  AWS_EC2_METADATA_DISABLED: 'true'
+  MODEL_ARTIFACT_PREFIX: studio-demos/lifecycle/

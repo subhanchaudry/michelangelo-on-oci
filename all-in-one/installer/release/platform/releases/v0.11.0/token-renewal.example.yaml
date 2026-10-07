@@ -1,0 +1,88 @@
+# Site template for one upstream Secret-based runtime registration.
+# Replace every REPLACE_* value consistently before reviewing or applying.
+# Instantiate separately for compute and serving; grant only the named account and Secret.
+apiVersion: v1
+kind: ServiceAccount
+metadata: { name: REPLACE_RENEWER_NAME, namespace: REPLACE_RUNTIME_NAMESPACE }
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata: { name: REPLACE_RENEWER_NAME, namespace: REPLACE_RUNTIME_NAMESPACE }
+rules:
+  - apiGroups: [""]
+    resources: ["serviceaccounts/token"]
+    resourceNames: ["REPLACE_RUNTIME_ACCOUNT"]
+    verbs: ["create"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames: ["REPLACE_TOKEN_SECRET"]
+    verbs: ["get", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata: { name: REPLACE_RENEWER_NAME, namespace: REPLACE_RUNTIME_NAMESPACE }
+subjects:
+  - { kind: ServiceAccount, name: REPLACE_RENEWER_NAME, namespace: REPLACE_RUNTIME_NAMESPACE }
+roleRef: { apiGroup: rbac.authorization.k8s.io, kind: Role, name: REPLACE_RENEWER_NAME }
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata: { name: REPLACE_RENEWAL_JOB_NAME, namespace: REPLACE_RUNTIME_NAMESPACE }
+spec:
+  schedule: "0 */6 * * *"
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 3600
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 2
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      activeDeadlineSeconds: 180
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels: { app.kubernetes.io/name: REPLACE_RENEWAL_JOB_NAME }
+        spec:
+          serviceAccountName: REPLACE_RENEWER_NAME
+          restartPolicy: Never
+          nodeSelector: { REPLACE_SYSTEM_NODE_LABEL: REPLACE_SYSTEM_NODE_VALUE }
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65532
+            runAsGroup: 65532
+            seccompProfile: { type: RuntimeDefault }
+          containers:
+            - name: renew
+              image: docker.io/library/python@sha256:2fe5997d249a808b8eeea52c58a1dbffbba28754dc11699ef5c029f2d818ce79
+              imagePullPolicy: IfNotPresent
+              resources:
+                requests: { cpu: 25m, memory: 32Mi }
+                limits: { cpu: 100m, memory: 64Mi }
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities: { drop: [ALL] }
+              command: [python, -c]
+              args:
+                - |
+                  import base64, json, ssl, urllib.request
+                  from pathlib import Path
+                  root = Path('/var/run/secrets/kubernetes.io/serviceaccount')
+                  context = ssl.create_default_context(cafile=str(root / 'ca.crt'))
+                  headers = {'Authorization': 'Bearer ' + (root / 'token').read_text().strip()}
+                  def api(path, method='GET', data=None):
+                      h = dict(headers)
+                      h['Content-Type'] = 'application/merge-patch+json' if method == 'PATCH' else 'application/json'
+                      body = None if data is None else json.dumps(data).encode()
+                      request = urllib.request.Request('https://kubernetes.default.svc' + path, data=body, headers=h, method=method)
+                      with urllib.request.urlopen(request, context=context, timeout=20) as response:
+                          return json.load(response)
+                  secret_path = '/api/v1/namespaces/REPLACE_RUNTIME_NAMESPACE/secrets/REPLACE_TOKEN_SECRET'
+                  current = api(secret_path)
+                  if set(current.get('data', {})) != {'token'}:
+                      raise SystemExit('Unexpected runtime token schema')
+                  request = {'apiVersion': 'authentication.k8s.io/v1', 'kind': 'TokenRequest', 'spec': {'expirationSeconds': 86400}}
+                  result = api('/api/v1/namespaces/REPLACE_RUNTIME_NAMESPACE/serviceaccounts/REPLACE_RUNTIME_ACCOUNT/token', 'POST', request)
+                  encoded = base64.b64encode(result['status']['token'].encode()).decode()
+                  api(secret_path, 'PATCH', {'metadata': {'resourceVersion': current['metadata']['resourceVersion']}, 'data': {'token': encoded}})
+                  print('Runtime registration renewed; expiry:', result['status']['expirationTimestamp'])

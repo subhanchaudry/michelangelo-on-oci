@@ -1,0 +1,72 @@
+# Starting configuration, not a ready-to-apply customer production deployment.
+# Replace every REPLACE_* value. Secrets must already exist; no credentials belong here.
+metadataStorage:
+  driver: mysql
+  initImage: REPLACE_DATABASE_INIT_IMAGE_DIGEST_URI
+  host: REPLACE_PRIVATE_MYSQL_HOST
+  database: michelangelo
+  user: REPLACE_DATABASE_USER
+  existingSecret: michelangelo-mysql
+objectStorage:
+  # Use Terraform s3_compatibility_host (no https:// prefix).
+  endpoint: REPLACE_NAMESPACE.compat.objectstorage.REPLACE_REGION.oci.oraclecloud.com
+  region: REPLACE_REGION
+  bucket: REPLACE_ARTIFACT_BUCKET
+  secure: true
+  existingSecret: michelangelo-artifacts
+workflow:
+  engine: temporal
+  endpoint: REPLACE_PRIVATE_TEMPORAL_HOST:7233
+  domain: michelangelo
+cadence:
+  enabled: false
+temporal:
+  enabled: false
+imagePullSecrets:
+  - name: michelangelo-registry
+images:
+  apiserver: {repository: REPLACE_APISERVER_DIGEST_URI, tag: ''}
+  controllermgr: {repository: REPLACE_CONTROLLER_DIGEST_URI, tag: ''}
+  worker: {repository: REPLACE_WORKER_DIGEST_URI, tag: ''}
+  ui: {repository: REPLACE_UI_DIGEST_URI, tag: ''}
+  envoy: REPLACE_ENVOY_DIGEST_URI
+  kuberayCollector: REPLACE_COLLECTOR_DIGEST_URI
+inferenceServer:
+  triton:
+    defaultImage: REPLACE_CPU_TRITON_DIGEST_URI
+  gateway:
+    name: REPLACE_PRIVATE_GATEWAY
+    serviceName: REPLACE_PRIVATE_GATEWAY_SERVICE
+    serviceNamespace: REPLACE_GATEWAY_NAMESPACE
+    portName: http
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 65534
+  fsGroup: 65534
+  seccompProfile: {type: RuntimeDefault}
+apiserver:
+  service: {type: ClusterIP}
+  ingress: {enabled: false}
+  pipelineRunDefaults: {environment: nonprod}
+controllermgr:
+  minioUseEnvAws: true
+  extraEnvFrom:
+    - configMapRef: {name: michelangelo-runtime-config}
+  jobs:
+    k8sengine:
+      mapper:
+        logPersistence:
+          enabled: true
+          bucket: REPLACE_LOG_BUCKET
+          credentialsSecret: michelangelo-runtime-artifacts
+          s3DisableSSL: false
+          logURLFormat: REPLACE_PRIVATE_LOG_URL_TEMPLATE
+ui:
+  service: {type: ClusterIP}
+  ingress: {enabled: false}
+  apiBaseUrl: /api
+  basicAuthSecret: michelangelo-studio-login
+  authImage: REPLACE_PRIVATE_LOGIN_IMAGE_DIGEST_URI
+envoy:
+  service: {type: ClusterIP}
+  ingress: {enabled: false}

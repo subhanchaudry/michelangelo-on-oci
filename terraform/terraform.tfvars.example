@@ -1,0 +1,37 @@
+# Copy to terraform.tfvars. Supply mysql_admin_password through TF_VAR_mysql_admin_password.
+tenancy_ocid             = "ocid1.tenancy.oc1..example"
+compartment_id           = "ocid1.compartment.oc1..example"
+platform_compartment_name = "MichelangeloAI"
+environment              = "nonprod"
+region                   = "us-ashburn-1"
+home_region              = "us-ashburn-1"
+availability_domain      = "exampleAD-1"
+gpu_availability_domain  = null
+kubernetes_version       = "REPLACE_WITH_SUPPORTED_OKE_VERSION"
+oke_node_image_id        = "ocid1.image.oc1.iad.example"
+gpu_oke_node_image_id    = null
+system_node_ocpus         = 2
+system_node_memory_in_gbs = 16
+cpu_node_ocpus            = 2
+cpu_node_memory_in_gbs    = 16
+object_storage_namespace = "examplenamespace"
+admin_cidr               = "203.0.113.0/24"
+# operator_group_name    = "approved-platform-operators"
+
+# Fresh CPU-only environments do not create a GPU pool.
+# Existing deployments must retain their current setting to avoid deletion.
+enable_gpu_pool = false
+gpu_node_count  = 0
+# Fresh-site baseline only; this is not the existing pilot's capacity.
+system_node_count = 3
+cpu_node_count = 1
+cpu_node_boot_volume_size_in_gbs = 500
+system_node_boot_volume_size_in_gbs = null
+release_repository_names = []
+registry_immutability_supported = false
+# Optional per-team buckets; identity policies and isolation tests are separate.
+# ml_team_names = ["ranking", "risk"]
+tags = {
+  owner       = "platform-engineering"
+  cost-center = "replace-me"
+}

@@ -1,0 +1,14 @@
+{
+  "inputs": [
+    {
+      "name": "RECORDS",
+      "shape": [
+        1
+      ],
+      "datatype": "BYTES",
+      "data": [
+        "[{\"features\": [1.0, 0.5, 0.5, 0.5, 0.5, 0.5]}]"
+      ]
+    }
+  ]
+}

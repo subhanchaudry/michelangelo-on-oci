@@ -1,0 +1,16 @@
+{
+  "release": "0.12.0-oci.1-rc.1",
+  "repository": "https://github.com/michelangelo-ai/michelangelo.git",
+  "upstream_tag": "v0.12.0",
+  "upstream_commit": "ed2a2b09ed9fab57e1479f45e84330a78f3ff8d3",
+  "patch": {
+    "file": "compatibility.patch",
+    "sha256": "f5da0090a553a8f481d476a63da0438094b67e8a4afd095cc383a149ab523a83"
+  },
+  "status": "requires-site-validation",
+  "excluded_legacy_patch_paths": [
+    "python/examples/gpt_oss_20b_finetune/simple_workflow.py"
+  ],
+  "exclusion_reason": "Removed upstream; not required by the included lifecycle examples.",
+  "production_ready": false
+}

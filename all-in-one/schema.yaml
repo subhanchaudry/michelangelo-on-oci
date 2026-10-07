@@ -1,0 +1,124 @@
+title: Michelangelo all-in-one on OCI
+description: Private OKE and MySQL, application installation, and public HTTPS with OCI IAM login.
+schemaVersion: 1.1.0
+version: 2.0.0
+locale: en
+informationalText: Select Terraform 1.5.x. This stack creates billable infrastructure and installs the application. Restrict stack and state access; generated secrets are retained in managed state.
+variableGroups:
+  - title: Destination and access
+    variables: [tenancy_ocid, compartment_id, region, home_region, environment, admin_cidr, operator_ssh_public_key]
+  - title: OCI IAM application login
+    variables: [auth_identity_domain_url, auth_authorized_emails, auth_admin_emails, auth_acme_email, enable_public_signing_certificate_access, public_hostname]
+  - title: OCI IAM machine account contacts
+    variables: [automation_user_email, runtime_reader_user_email]
+  - title: Optional capacity and compatibility overrides
+    variables: [availability_domain, kubernetes_version, oke_node_image_id, bootstrap_image_id, node_shape, node_ocpus, node_memory_gbs, node_boot_gbs, cpu_boot_gbs, bootstrap_shape, bootstrap_ocpus, bootstrap_memory_gbs, mysql_shape, mysql_username, tags]
+variables:
+  tenancy_ocid:
+    type: string
+    required: true
+    title: Tenancy OCID
+  compartment_id:
+    type: oci:identity:compartment:id
+    required: true
+    title: Existing workload compartment
+  region:
+    type: oci:identity:region:name
+    required: true
+    title: Workload region
+  home_region:
+    type: oci:identity:region:name
+    required: true
+    title: Tenancy home region
+  environment:
+    type: string
+    default: oneclick
+    pattern: '^[a-z][a-z0-9-]{2,12}$'
+  admin_cidr:
+    type: string
+    required: true
+    title: Operator SSH address (/32)
+  operator_ssh_public_key:
+    type: string
+    required: false
+  auth_identity_domain_url:
+    type: string
+    required: true
+    title: Existing IAM identity-domain HTTPS URL
+  auth_authorized_emails:
+    type: list
+    valueType: application_email_value
+    required: true
+    title: Initial application invitations (exact existing IAM emails)
+    description: Initial membership only. Administrators add/remove users in Studio without redeploying; invitations do not create IAM accounts.
+  auth_admin_emails:
+    type: list
+    valueType: application_email_value
+    required: false
+    default: '[]'
+    title: Initial application administrators
+    description: Empty uses the first initial invitation. Later roles and removals persist across redeploys.
+  enable_public_signing_certificate_access:
+    type: boolean
+    default: true
+    title: Enable public identity-domain signing keys
+    description: Enable domain-wide public JWKS/certificates only for OIDC verification. Unchecked preserves the existing flag; successful login still requires public JWKS. Other settings are retained and the existing singleton is protected from destroy.
+  auth_acme_email:
+    type: string
+    required: true
+    title: HTTPS certificate contact email
+  automation_user_email:
+    type: string
+    required: true
+    title: Installer machine account email
+    description: Owner contact email; may be the same address as the runtime account contact.
+  runtime_reader_user_email:
+    type: string
+    required: true
+    title: Read-only runtime machine account email
+    description: Owner contact email; may be the same address as the installer account contact.
+  public_hostname:
+    type: string
+    required: false
+    title: Optional custom DNS hostname
+    description: Leave empty to use the generated reserved-IP.sslip.io hostname.
+  use_resource_manager_private_endpoint:
+    type: boolean
+    default: true
+    visible: false
+  availability_domain:
+    type: string
+    required: false
+    description: Leave empty to select the first availability domain.
+  kubernetes_version:
+    type: string
+    required: false
+    description: Leave empty to select the latest regionally supported Kubernetes version.
+  oke_node_image_id:
+    type: string
+    required: false
+    description: Leave empty to select the matching x86 OKE image.
+  bootstrap_image_id:
+    type: string
+    required: false
+    description: Leave empty to select Ubuntu 24.04 for the bootstrap shape.
+  node_shape: {type: string, default: VM.Standard.E5.Flex}
+  node_ocpus: {type: number, default: 2, minimum: 1}
+  node_memory_gbs: {type: number, default: 16, minimum: 8}
+  node_boot_gbs: {type: number, default: 200, minimum: 100}
+  cpu_boot_gbs: {type: number, default: 500, minimum: 200}
+  bootstrap_shape: {type: string, default: VM.Standard.E5.Flex}
+  bootstrap_ocpus: {type: number, default: 4, minimum: 2}
+  bootstrap_memory_gbs: {type: number, default: 32, minimum: 16}
+  mysql_shape: {type: string, default: MySQL.2}
+  mysql_username: {type: string, default: maadmin}
+  tags: {type: map, valueType: tag_string_value, default: '{}'}
+  # Complex valueType names reference hidden schema definitions, not TF types.
+  # These describe list/map elements and are not standalone Terraform inputs.
+  application_email_value:
+    type: string
+    visible: false
+    pattern: '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'
+  tag_string_value:
+    type: string
+    visible: false

@@ -1,0 +1,16 @@
+# Prerequisites for the retained supervised pilot concurrency profile.
+# Names and namespace match the documented compatibility implementation.
+# These empty leases grant no permissions and provision no compute.
+apiVersion: coordination.k8s.io/v1
+kind: Lease
+metadata:
+  name: michelangelo-pilot-serving
+  namespace: ma-system
+spec: {}
+---
+apiVersion: coordination.k8s.io/v1
+kind: Lease
+metadata:
+  name: michelangelo-pilot-workflows
+  namespace: ma-system
+spec: {}

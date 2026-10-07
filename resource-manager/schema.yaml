@@ -1,0 +1,282 @@
+title: Michelangelo OCI foundation
+description: New-site OCI infrastructure only. Application installation and production
+  acceptance are separate.
+schemaVersion: 1.1.0
+version: 1.0.0
+locale: en
+informationalText: Select Terraform 1.5.x. Create a Plan first; do not automatically
+  Apply. This package does not adopt an existing pilot or install Michelangelo.
+variableGroups:
+- title: Destination
+  variables:
+  - tenancy_ocid
+  - compartment_id
+  - platform_compartment_name
+  - environment
+  - region
+  - home_region
+  - availability_domain
+- title: OKE and CPU capacity
+  variables:
+  - kubernetes_version
+  - oke_node_image_id
+  - system_node_shape
+  - system_node_count
+  - system_node_ocpus
+  - system_node_memory_in_gbs
+  - system_node_boot_volume_size_in_gbs
+  - cpu_node_shape
+  - cpu_node_count
+  - cpu_node_ocpus
+  - cpu_node_memory_in_gbs
+  - cpu_node_boot_volume_size_in_gbs
+- title: Database and access
+  variables:
+  - mysql_shape_name
+  - mysql_admin_username
+  - mysql_admin_password
+  - object_storage_namespace
+  - admin_cidr
+- title: Optional GPU capacity
+  variables:
+  - enable_gpu_pool
+  - gpu_availability_domain
+  - gpu_oke_node_image_id
+  - gpu_node_shape
+  - gpu_node_count
+- title: Optional repositories and team buckets
+  variables:
+  - release_repository_names
+  - registry_immutability_supported
+  - ml_team_names
+  - tags
+  - operator_group_name
+variables:
+  tenancy_ocid:
+    type: string
+    title: Tenancy ocid
+    description: OCI tenancy OCID.
+    required: true
+  compartment_id:
+    type: oci:identity:compartment:id
+    title: Compartment id
+    description: Parent compartment for the accelerator environment.
+    required: true
+  platform_compartment_name:
+    type: string
+    title: Platform compartment name
+    description: Name of the child compartment created for this accelerator environment.
+    required: false
+    default: MichelangeloAI
+  environment:
+    type: string
+    title: Environment
+    description: 2-16 lowercase letters/digits/hyphens, with at most 13 non-hyphen
+      characters for the VCN DNS label.
+    required: false
+    default: nonprod
+    pattern: ^[a-z0-9-]{2,16}$
+  region:
+    type: oci:identity:region:name
+    title: Region
+    description: OCI workload region used by the provider and Object Storage endpoints.
+    required: true
+  home_region:
+    type: string
+    title: Home region
+    description: Actual tenancy home region name for IAM operations; may differ from
+      the stack/workload region.
+    required: true
+  operator_group_name:
+    type: string
+    title: Operator group name
+    description: Existing tenancy IAM group granted platform-operator access. Leave
+      null to skip the optional policy.
+    required: false
+    visible: false
+  availability_domain:
+    type: string
+    title: Availability domain
+    description: Exact availability-domain name in the workload region, for example
+      the value returned by OCI ListAvailabilityDomains. Must support selected shapes.
+    required: true
+  gpu_availability_domain:
+    type: string
+    title: Gpu availability domain
+    description: Availability domain for the optional GPU pool. Set it to an AD where
+      the selected GPU shape is available.
+    required: false
+    visible: ${enable_gpu_pool}
+  kubernetes_version:
+    type: string
+    title: Kubernetes version
+    description: An OKE-supported Kubernetes version that is >= the upstream Michelangelo
+      minimum.
+    required: true
+  oke_node_image_id:
+    type: string
+    title: Oke node image id
+    description: Image OCID for the selected CPU/system OKE worker-node image. Resolve
+      it per region and Kubernetes version.
+    required: true
+  gpu_oke_node_image_id:
+    type: string
+    title: Gpu oke node image id
+    description: Image OCID for the selected GPU-enabled OKE worker-node image. Resolve
+      it per region and Kubernetes version.
+    required: false
+    visible: ${enable_gpu_pool}
+  system_node_shape:
+    type: string
+    title: System node shape
+    description: CPU shape for Michelangelo, Temporal, KubeRay, ingress, and observability.
+    required: false
+    default: VM.Standard.E5.Flex
+  system_node_ocpus:
+    type: number
+    title: System node ocpus
+    description: OCPU count for each flexible-shape system node.
+    required: false
+    default: 2
+  system_node_memory_in_gbs:
+    type: number
+    title: System node memory in gbs
+    description: Memory in GB for each flexible-shape system node.
+    required: false
+    default: 16
+  cpu_node_shape:
+    type: string
+    title: Cpu node shape
+    description: CPU shape for Ray execution workloads.
+    required: false
+    default: VM.Standard.E5.Flex
+  cpu_node_ocpus:
+    type: number
+    title: Cpu node ocpus
+    description: OCPU count for each flexible-shape CPU execution node.
+    required: false
+    default: 2
+  cpu_node_memory_in_gbs:
+    type: number
+    title: Cpu node memory in gbs
+    description: Memory in GB for each flexible-shape CPU execution node.
+    required: false
+    default: 16
+  gpu_node_shape:
+    type: string
+    title: Gpu node shape
+    description: GPU shape for Ray execution workloads. Must be available in the selected
+      region.
+    required: false
+    default: VM.GPU.A10.1
+    visible: ${enable_gpu_pool}
+  enable_gpu_pool:
+    type: boolean
+    title: Enable gpu pool
+    description: Whether to create the optional GPU Ray execution node pool.
+    required: false
+    default: false
+  system_node_count:
+    type: number
+    title: System node count
+    description: Initial system pool node count.
+    required: false
+    default: 3
+    minimum: 1
+    multipleOf: 1
+  system_node_boot_volume_size_in_gbs:
+    type: number
+    title: System node boot volume size in gbs
+    description: Optional boot size for system nodes. Null preserves the image default
+      used by the existing pool.
+    required: false
+    visible: false
+  cpu_node_count:
+    type: number
+    title: Cpu node count
+    description: Initial CPU execution pool node count.
+    required: false
+    default: 1
+    minimum: 0
+    multipleOf: 1
+  cpu_node_boot_volume_size_in_gbs:
+    type: number
+    title: Cpu node boot volume size in gbs
+    description: Boot volume size for CPU Ray/Spark execution nodes. Use at least
+      500 GiB for the full upstream examples image.
+    required: false
+    default: 500
+    minimum: 500
+  gpu_node_count:
+    type: number
+    title: Gpu node count
+    description: Initial GPU execution pool node count when enable_gpu_pool is true.
+    required: false
+    default: 0
+    visible: ${enable_gpu_pool}
+    minimum: 0
+    multipleOf: 1
+  mysql_shape_name:
+    type: string
+    title: Mysql shape name
+    description: OCI MySQL DB System shape. Confirm capacity and HA requirements before
+      production use.
+    required: false
+    default: MySQL.2
+  mysql_admin_username:
+    type: string
+    title: Mysql admin username
+    description: MySQL bootstrap administrator name. Create the application user separately
+      after provisioning.
+    required: false
+    default: madmin
+  mysql_admin_password:
+    type: password
+    title: Mysql admin password
+    description: Enter the MySQL administrator password. Masked in the Console; retained
+      in Terraform state. Do not include it in the ZIP.
+    required: true
+    confirmation: true
+  object_storage_namespace:
+    type: string
+    title: Object storage namespace
+    description: OCI Object Storage namespace. Retrieve with `oci os ns get`.
+    required: true
+  ml_team_names:
+    type: array
+    title: Ml team names
+    description: Optional lowercase team identifiers. Creates private per-team artifact
+      buckets; identity policies and isolation acceptance are separate requirements.
+    required: false
+    items:
+      type: string
+    uniqueItems: true
+  admin_cidr:
+    type: string
+    title: Admin cidr
+    description: 'Permanent Bastion client IPv4 range: /24 or narrower, preferably
+      your required /32. No default public range is supplied.'
+    required: true
+  release_repository_names:
+    type: array
+    title: Release repository names
+    description: Optional separate release repositories. The current pilot uses only
+      the existing shared repository.
+    required: false
+    items:
+      type: string
+    uniqueItems: true
+  tags:
+    type: map
+    title: Tags
+    description: Free-form tags applied to all supported resources.
+    required: false
+    valueType: string
+    default: '{}'
+  registry_immutability_supported:
+    type: boolean
+    title: Registry immutability supported
+    description: Leave false unless the destination OCIR service accepts repository
+      immutability; verify support in the destination region.
+    required: false
+    default: false

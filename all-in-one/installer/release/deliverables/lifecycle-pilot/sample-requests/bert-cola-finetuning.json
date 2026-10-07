@@ -1,0 +1,14 @@
+{
+  "inputs": [
+    {
+      "name": "RECORDS",
+      "shape": [
+        1
+      ],
+      "datatype": "BYTES",
+      "data": [
+        "[{\"text\": \"The engineer tested the model.\"}, {\"text\": \"The models runs is working.\"}]"
+      ]
+    }
+  ]
+}

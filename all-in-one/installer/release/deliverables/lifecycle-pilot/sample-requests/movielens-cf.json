@@ -1,0 +1,14 @@
+{
+  "inputs": [
+    {
+      "name": "RECORDS",
+      "shape": [
+        1
+      ],
+      "datatype": "BYTES",
+      "data": [
+        "[{\"user_id\": 0, \"item_id\": 0}]"
+      ]
+    }
+  ]
+}

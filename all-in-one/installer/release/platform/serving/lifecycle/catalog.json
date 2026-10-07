@@ -1,0 +1,337 @@
+{
+  "schema_version": 1,
+  "status": "requires-site-validation",
+  "capacity": {
+    "active_endpoints": 1,
+    "workflow_concurrency": 1,
+    "gpu": 0,
+    "autoscale_nodes": false
+  },
+  "handoff": {
+    "endpoints": "suspended",
+    "recurring_triggers": "paused",
+    "verified_for_current_release": false
+  },
+  "models": [
+    {
+      "demo": "ranking-smoke",
+      "project": "oci-ranking-showcase",
+      "framework": "python-ray",
+      "pipelines": [
+        {
+          "name": "ranking-smoke-batch-predict",
+          "operation": "batch-predict",
+          "type": "PIPELINE_TYPE_PREDICTION",
+          "studio_section": "deploy",
+          "deployed": false
+        },
+        {
+          "name": "ranking-smoke-serving",
+          "operation": "serving",
+          "type": "PIPELINE_TYPE_SCORER",
+          "studio_section": "deploy",
+          "deployed": false
+        },
+        {
+          "name": "ranking-smoke-experiment",
+          "operation": "experiment",
+          "type": "PIPELINE_TYPE_EXPERIMENT",
+          "studio_section": "retrain",
+          "deployed": false
+        },
+        {
+          "name": "ranking-smoke-retrain",
+          "operation": "retrain",
+          "type": "PIPELINE_TYPE_RETRAIN",
+          "studio_section": "retrain",
+          "deployed": false
+        }
+      ],
+      "parity_tolerance": {
+        "rtol": 1e-06,
+        "atol": 1e-07
+      },
+      "acceptance": "requires-site-validation"
+    },
+    {
+      "demo": "ranking-mlops",
+      "project": "oci-ranking-showcase",
+      "framework": "python-ray",
+      "pipelines": [
+        {
+          "name": "ranking-mlops-batch-predict",
+          "operation": "batch-predict",
+          "type": "PIPELINE_TYPE_PREDICTION",
+          "studio_section": "deploy",
+          "deployed": false
+        },
+        {
+          "name": "ranking-mlops-serving",
+          "operation": "serving",
+          "type": "PIPELINE_TYPE_SCORER",
+          "studio_section": "deploy",
+          "deployed": false
+        },
+        {
+          "name": "ranking-mlops-experiment",
+          "operation": "experiment",
+          "type": "PIPELINE_TYPE_EXPERIMENT",
+          "studio_section": "retrain",
+          "deployed": false
+        },
+        {
+          "name": "ranking-mlops-retrain",
+          "operation": "retrain",
+          "type": "PIPELINE_TYPE_RETRAIN",
+          "studio_section": "retrain",
+          "deployed": false
+        }
+      ],
+      "parity_tolerance": {
+        "rtol": 1e-06,
+        "atol": 1e-07
+      },
+      "acceptance": "requires-site-validation"
+    },
+    {
+      "demo": "ranking-advanced",
+      "project": "oci-ranking-showcase",
+      "framework": "python-ray",
+      "pipelines": [
+        {
+          "name": "ranking-advanced-batch-predict",
+          "operation": "batch-predict",
+          "type": "PIPELINE_TYPE_PREDICTION",
+          "studio_section": "deploy",
+          "deployed": false
+        },
+        {
+          "name": "ranking-advanced-serving",
+          "operation": "serving",
+          "type": "PIPELINE_TYPE_SCORER",
+          "studio_section": "deploy",
+          "deployed": false
+        },
+        {
+          "name": "ranking-advanced-experiment",
+          "operation": "experiment",
+          "type": "PIPELINE_TYPE_EXPERIMENT",
+          "studio_section": "retrain",
+          "deployed": false
+        },
+        {
+          "name": "ranking-advanced-retrain",
+          "operation": "retrain",
+          "type": "PIPELINE_TYPE_RETRAIN",
+          "studio_section": "retrain",
+          "deployed": false
+        }
+      ],
+      "parity_tolerance": {
+        "rtol": 1e-06,
+        "atol": 1e-07
+      },
+      "acceptance": "requires-site-validation"
+    },
+    {
+      "demo": "movielens-cf",
+      "project": "oci-movielens-showcase",
+      "framework": "python-ray",
+      "pipelines": [
+        {
+          "name": "movielens-cf-batch-predict",
+          "operation": "batch-predict",
+          "type": "PIPELINE_TYPE_PREDICTION",
+          "studio_section": "deploy",
+          "deployed": false
+        },
+        {
+          "name": "movielens-cf-serving",
+          "operation": "serving",
+          "type": "PIPELINE_TYPE_SCORER",
+          "studio_section": "deploy",
+          "deployed": false
+        },
+        {
+          "name": "movielens-cf-experiment",
+          "operation": "experiment",
+          "type": "PIPELINE_TYPE_EXPERIMENT",
+          "studio_section": "retrain",
+          "deployed": false
+        },
+        {
+          "name": "movielens-cf-retrain",
+          "operation": "retrain",
+          "type": "PIPELINE_TYPE_RETRAIN",
+          "studio_section": "retrain",
+          "deployed": false
+        }
+      ],
+      "parity_tolerance": {
+        "rtol": 1e-06,
+        "atol": 1e-07
+      },
+      "acceptance": "requires-site-validation"
+    },
+    {
+      "demo": "fraud-anomaly",
+      "project": "oci-fraud-anomaly-showcase",
+      "framework": "python-ray",
+      "pipelines": [
+        {
+          "name": "fraud-anomaly-batch-predict",
+          "operation": "batch-predict",
+          "type": "PIPELINE_TYPE_PREDICTION",
+          "studio_section": "deploy",
+          "deployed": false
+        },
+        {
+          "name": "fraud-anomaly-serving",
+          "operation": "serving",
+          "type": "PIPELINE_TYPE_SCORER",
+          "studio_section": "deploy",
+          "deployed": false
+        },
+        {
+          "name": "fraud-anomaly-experiment",
+          "operation": "experiment",
+          "type": "PIPELINE_TYPE_EXPERIMENT",
+          "studio_section": "retrain",
+          "deployed": false
+        },
+        {
+          "name": "fraud-anomaly-retrain",
+          "operation": "retrain",
+          "type": "PIPELINE_TYPE_RETRAIN",
+          "studio_section": "retrain",
+          "deployed": false
+        }
+      ],
+      "parity_tolerance": {
+        "rtol": 1e-06,
+        "atol": 1e-07
+      },
+      "acceptance": "requires-site-validation"
+    },
+    {
+      "demo": "housing-synthetic",
+      "project": "oci-california-housing-showcase",
+      "framework": "python-ray",
+      "pipelines": [
+        {
+          "name": "housing-synthetic-batch-predict",
+          "operation": "batch-predict",
+          "type": "PIPELINE_TYPE_PREDICTION",
+          "studio_section": "deploy",
+          "deployed": false
+        },
+        {
+          "name": "housing-synthetic-serving",
+          "operation": "serving",
+          "type": "PIPELINE_TYPE_SCORER",
+          "studio_section": "deploy",
+          "deployed": false
+        },
+        {
+          "name": "housing-synthetic-experiment",
+          "operation": "experiment",
+          "type": "PIPELINE_TYPE_EXPERIMENT",
+          "studio_section": "retrain",
+          "deployed": false
+        },
+        {
+          "name": "housing-synthetic-retrain",
+          "operation": "retrain",
+          "type": "PIPELINE_TYPE_RETRAIN",
+          "studio_section": "retrain",
+          "deployed": false
+        }
+      ],
+      "parity_tolerance": {
+        "rtol": 1e-06,
+        "atol": 1e-07
+      },
+      "acceptance": "requires-site-validation"
+    },
+    {
+      "demo": "california-housing-xgb",
+      "project": "oci-california-housing-showcase",
+      "framework": "xgboost",
+      "pipelines": [
+        {
+          "name": "california-housing-xgb-batch-predict",
+          "operation": "batch-predict",
+          "type": "PIPELINE_TYPE_PREDICTION",
+          "studio_section": "deploy",
+          "deployed": false
+        },
+        {
+          "name": "california-housing-xgb-serving",
+          "operation": "serving",
+          "type": "PIPELINE_TYPE_SCORER",
+          "studio_section": "deploy",
+          "deployed": false
+        },
+        {
+          "name": "california-housing-xgb-experiment",
+          "operation": "experiment",
+          "type": "PIPELINE_TYPE_EXPERIMENT",
+          "studio_section": "retrain",
+          "deployed": false
+        },
+        {
+          "name": "california-housing-xgb-retrain",
+          "operation": "retrain",
+          "type": "PIPELINE_TYPE_RETRAIN",
+          "studio_section": "retrain",
+          "deployed": false
+        }
+      ],
+      "parity_tolerance": {
+        "rtol": 1e-05,
+        "atol": 1e-06
+      },
+      "acceptance": "requires-site-validation"
+    },
+    {
+      "demo": "bert-cola-finetuning",
+      "project": "oci-bert-cola-showcase",
+      "framework": "pytorch-transformers",
+      "pipelines": [
+        {
+          "name": "bert-cola-finetuning-batch-predict",
+          "operation": "batch-predict",
+          "type": "PIPELINE_TYPE_PREDICTION",
+          "studio_section": "deploy",
+          "deployed": false
+        },
+        {
+          "name": "bert-cola-finetuning-serving",
+          "operation": "serving",
+          "type": "PIPELINE_TYPE_SCORER",
+          "studio_section": "deploy",
+          "deployed": false
+        },
+        {
+          "name": "bert-cola-finetuning-experiment",
+          "operation": "experiment",
+          "type": "PIPELINE_TYPE_EXPERIMENT",
+          "studio_section": "retrain",
+          "deployed": false
+        },
+        {
+          "name": "bert-cola-finetuning-retrain",
+          "operation": "retrain",
+          "type": "PIPELINE_TYPE_RETRAIN",
+          "studio_section": "retrain",
+          "deployed": false
+        }
+      ],
+      "parity_tolerance": {
+        "rtol": 1e-05,
+        "atol": 1e-06
+      },
+      "acceptance": "requires-site-validation"
+    }
+  ]
+}

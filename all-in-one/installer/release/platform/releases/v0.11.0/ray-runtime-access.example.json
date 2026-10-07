@@ -1,0 +1,104 @@
+{
+  "apiVersion": "v1",
+  "kind": "List",
+  "items": [
+    {
+      "apiVersion": "v1",
+      "kind": "ServiceAccount",
+      "metadata": {
+        "name": "michelangelo-lifecycle-runner",
+        "namespace": "default"
+      },
+      "automountServiceAccountToken": false,
+      "imagePullSecrets": [
+        {
+          "name": "ma-lifecycle-runtime-registry"
+        }
+      ]
+    },
+    {
+      "apiVersion": "kyverno.io/v1",
+      "kind": "ClusterPolicy",
+      "metadata": {
+        "name": "michelangelo-lifecycle-runtime-access",
+        "annotations": {
+          "pod-policies.kyverno.io/autogen-controllers": "none"
+        }
+      },
+      "spec": {
+        "background": false,
+        "rules": [
+          {
+            "name": "dedicated-account-cluster",
+            "match": {
+              "any": [
+                {
+                  "resources": {
+                    "kinds": [
+                      "ray.io/v1/RayCluster"
+                    ],
+                    "namespaces": [
+                      "default"
+                    ],
+                    "names": [
+                      "uf-ray-*"
+                    ]
+                  }
+                }
+              ]
+            },
+            "preconditions": {
+              "all": [
+                {
+                  "key": "{{ request.object.spec.headGroupSpec.template.spec.containers[0].image }}",
+                  "operator": "Equals",
+                  "value": "REPLACE_DIGEST_PINNED_LIFECYCLE_IMAGE"
+                },
+                {
+                  "key": "{{ request.object.spec.headGroupSpec.template.spec.volumes[0].name }}",
+                  "operator": "Equals",
+                  "value": "ray"
+                }
+              ]
+            },
+            "mutate": {
+              "patchesJson6902": "[{\"op\": \"add\", \"path\": \"/spec/headGroupSpec/template/spec/serviceAccountName\", \"value\": \"michelangelo-lifecycle-runner\"}, {\"op\": \"add\", \"path\": \"/spec/headGroupSpec/template/spec/automountServiceAccountToken\", \"value\": false}, {\"op\": \"add\", \"path\": \"/spec/headGroupSpec/template/spec/imagePullSecrets\", \"value\": [{\"name\": \"ma-lifecycle-runtime-registry\"}]}, {\"op\": \"add\", \"path\": \"/spec/headGroupSpec/template/spec/securityContext\", \"value\": {\"fsGroup\": 65534}}, {\"op\": \"replace\", \"path\": \"/spec/headGroupSpec/template/spec/volumes/0\", \"value\": {\"name\": \"ray\", \"emptyDir\": {}}}, {\"op\": \"add\", \"path\": \"/spec/workerGroupSpecs/0/template/spec/serviceAccountName\", \"value\": \"michelangelo-lifecycle-runner\"}, {\"op\": \"add\", \"path\": \"/spec/workerGroupSpecs/0/template/spec/automountServiceAccountToken\", \"value\": false}, {\"op\": \"add\", \"path\": \"/spec/workerGroupSpecs/0/template/spec/imagePullSecrets\", \"value\": [{\"name\": \"ma-lifecycle-runtime-registry\"}]}, {\"op\": \"add\", \"path\": \"/spec/workerGroupSpecs/0/template/spec/securityContext\", \"value\": {\"fsGroup\": 65534}}]"
+            }
+          },
+          {
+            "name": "dedicated-account-submitter",
+            "match": {
+              "any": [
+                {
+                  "resources": {
+                    "kinds": [
+                      "batch/v1/Job"
+                    ],
+                    "namespaces": [
+                      "default"
+                    ],
+                    "names": [
+                      "uf-rj-*"
+                    ]
+                  }
+                }
+              ]
+            },
+            "preconditions": {
+              "all": [
+                {
+                  "key": "{{ request.object.spec.template.spec.containers[0].image }}",
+                  "operator": "Equals",
+                  "value": "REPLACE_DIGEST_PINNED_LIFECYCLE_IMAGE"
+                }
+              ]
+            },
+            "mutate": {
+              "patchesJson6902": "[{\"op\": \"add\", \"path\": \"/spec/template/spec/serviceAccountName\", \"value\": \"michelangelo-lifecycle-runner\"}, {\"op\": \"add\", \"path\": \"/spec/template/spec/automountServiceAccountToken\", \"value\": false}, {\"op\": \"add\", \"path\": \"/spec/template/spec/imagePullSecrets\", \"value\": [{\"name\": \"ma-lifecycle-runtime-registry\"}]}, {\"op\": \"add\", \"path\": \"/spec/template/spec/securityContext\", \"value\": {\"fsGroup\": 65534}}]"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}
