@@ -9,6 +9,7 @@ import json
 import socket
 import subprocess
 import time
+import urllib.error
 import urllib.request
 
 SOURCE = 'michelangelo.ai/ConsolidatedInstaller'
@@ -39,6 +40,44 @@ def build_revision(pipeline):
                      'baseResource': {'namespace': meta['namespace'], 'name': meta['name']},
                      'revisionId': digest, 'source': SOURCE,
                      'content': {'@type': 'type.googleapis.com/michelangelo.api.v2.Pipeline', **content}}}
+
+
+def ensure_revision(api, revision):
+    """Read through both native and archived storage; never recreate history."""
+    namespace, name = revision['metadata']['namespace'], revision['metadata']['name']
+    try:
+        stored = api('Revision', 'Get', {'namespace': namespace, 'name': name})['revision']
+    except urllib.error.HTTPError as error:
+        if error.code != 404:
+            raise
+        error.close()
+        try:
+            api('Revision', 'Create', {'revision': revision})
+        except urllib.error.HTTPError as conflict:
+            if conflict.code != 409:
+                raise
+            conflict.close()
+            # A concurrent creator/ingester may have made the same identity
+            # visible. Its contents must still pass every check below.
+        stored = api('Revision', 'Get', {'namespace': namespace, 'name': name})['revision']
+    meta, expected = stored['metadata'], revision['metadata']
+    annotations = meta.get('annotations', {})
+    if (meta.get('name') != name or meta.get('namespace') != namespace or not meta.get('uid') or
+        annotations.get(DIGEST) != expected['annotations'][DIGEST] or
+        annotations.get('michelangelo.ai/source-pipeline-uid') != expected['annotations']['michelangelo.ai/source-pipeline-uid'] or
+        any(stored['spec'].get(key) != revision['spec'][key] for key in ('source', 'revisionId', 'baseType', 'baseResource'))):
+        raise RuntimeError('Existing revision conflicts with installer snapshot: ' + name)
+    content = copy.deepcopy(stored['spec']['content'])
+    content.pop('@type', None)
+    if build_revision(content)['metadata']['annotations'][DIGEST] != expected['annotations'][DIGEST]:
+        raise RuntimeError('Stored revision content differs from its digest: ' + name)
+    return stored
+
+
+def require_ready_archive(stored):
+    if (stored.get('status', {}).get('state') not in (3, 'REVISION_STATE_READY') or
+        stored['metadata'].get('annotations', {}).get('michelangelo/Immutable') != 'true'):
+        raise RuntimeError('Archived installer revision is not immutable and ready')
 
 
 def install(core, entries):
@@ -79,27 +118,22 @@ def install(core, entries):
                     if time.monotonic() >= deadline: raise RuntimeError('Catalog pipeline is not ready: '+name)
                     time.sleep(2)
                 revision = build_revision(pipeline); revision_name = revision['metadata']['name']
-                existing = json.loads(core.run(['kubectl','-n',namespace,'get','revisions.michelangelo.api',
+                stored = ensure_revision(api, revision)
+                native = json.loads(core.run(['kubectl','-n',namespace,'get','revisions.michelangelo.api',
                     revision_name,'--ignore-not-found','-o','json'], capture=True) or 'null')
-                if existing:
-                    old_meta = existing['metadata']
-                    if (old_meta.get('annotations', {}).get(DIGEST) != revision['metadata']['annotations'][DIGEST] or
-                        old_meta.get('annotations', {}).get('michelangelo.ai/source-pipeline-uid') != pipeline['metadata']['uid'] or
-                        existing['spec'].get('source') != SOURCE):
-                        raise RuntimeError('Existing revision conflicts with installer snapshot: '+revision_name)
-                    stored = api('Revision','Get',{'namespace':namespace,'name':revision_name})['revision']
-                    stored_content = copy.deepcopy(stored['spec']['content'])
-                    stored_content.pop('@type', None)
-                    if build_revision(stored_content)['metadata']['annotations'][DIGEST] != revision['metadata']['annotations'][DIGEST]:
-                        raise RuntimeError('Stored revision content differs from its digest: '+revision_name)
-                else:
-                    api('Revision', 'Create', {'revision': revision})
                 # The snapshot contains an already compiled, checksummed READY
-                # pipeline. READY means runnable, never acceptance-qualified.
-                core.run(['kubectl','-n',namespace,'patch','revisions.michelangelo.api',revision_name,
-                    '--subresource=status','--type=merge','-p',json.dumps({'status':{'state':'REVISION_STATE_READY'}})])
-                core.run(['kubectl','-n',namespace,'annotate','revisions.michelangelo.api',revision_name,
-                          'michelangelo/Immutable=true','--overwrite'])
+                # pipeline. Archived snapshots already retain these stamps.
+                if native:
+                    if native['metadata']['uid'] != stored['metadata']['uid']:
+                        raise RuntimeError('Native revision identity differs from stored snapshot')
+                    if (stored.get('status', {}).get('state') not in (3, 'REVISION_STATE_READY') or
+                        stored['metadata'].get('annotations', {}).get('michelangelo/Immutable') != 'true'):
+                        core.run(['kubectl','-n',namespace,'patch','revisions.michelangelo.api',revision_name,
+                            '--subresource=status','--type=merge','-p',json.dumps({'status':{'state':'REVISION_STATE_READY'}})])
+                        core.run(['kubectl','-n',namespace,'annotate','revisions.michelangelo.api',revision_name,
+                                  'michelangelo/Immutable=true','--overwrite'])
+                else:
+                    require_ready_archive(stored)
                 core.run(['kubectl','-n',namespace,'patch','pipelines.michelangelo.api',name,
                     '--subresource=status','--type=merge','-p',json.dumps({'status':{'latestRevision':{
                         'name':revision_name,'namespace':namespace}}})])
