@@ -130,7 +130,7 @@ def documents(image):
                     'metadata':{'name':name},'spec':{'failurePolicy':'Fail',
                      'matchConstraints':{'resourceRules':[{'apiGroups':[group],'apiVersions':['*'],
                         'operations':['CREATE','UPDATE'],'resources':[resource]+(['pods/ephemeralcontainers'] if resource == 'pods' else [])}]},
-                     'validations':[{'expression':expression,'message':'Michelangelo runtime containment rejected unsafe workload'}]}},
+                     'validations':[{'expression':expression,'reason':'Forbidden','message':'Michelangelo runtime containment rejected unsafe workload'}]}},
                    {'apiVersion':'admissionregistration.k8s.io/v1','kind':'ValidatingAdmissionPolicyBinding',
                     'metadata':{'name':name},'spec':{'policyName':name,'validationActions':['Deny'],
                      'matchResources':{'namespaceSelector':{'matchLabels':{'kubernetes.io/metadata.name':'default'}}}}}]

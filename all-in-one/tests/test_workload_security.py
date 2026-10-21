@@ -114,6 +114,7 @@ class WorkloadSecurityTests(unittest.TestCase):
         for policy in security.documents(IMAGE):
             if policy['kind']=='ValidatingAdmissionPolicy':
                 self.assertEqual(policy['spec']['failurePolicy'],'Fail')
+                self.assertEqual(policy['spec']['validations'][0]['reason'],'Forbidden')
                 self.assertNotIn('matchConditions',policy['spec'])
             else:self.assertEqual(policy['spec']['validationActions'],['Deny'])
 
