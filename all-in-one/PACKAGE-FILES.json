@@ -13,6 +13,7 @@
   "installer/cpu-runtime.Dockerfile",
   "installer/dependencies/builder-requirements.lock",
   "installer/dependencies/builder.in",
+  "installer/dependencies/certifi-requirements.lock",
   "installer/dependencies/collector/go.mod",
   "installer/dependencies/collector/go.sum",
   "installer/dependencies/cpu-requirements.lock",

@@ -20,7 +20,7 @@ subprocess.run([sys.executable, '-m', 'pip', 'install', '--no-cache-dir', '--no-
 shutil.rmtree(metadata[0])
 subprocess.run([sys.executable, '-c',
     'import sys;sys.path.insert(0,sys.argv[1]);import aiohttp;'
-    'assert aiohttp.__version__ == "3.14.3";'
+    'assert aiohttp.__version__ == "3.14.4";'
     'assert aiohttp.__file__.startswith(sys.argv[1]+"/")', str(vendor)], check=True)
-if [p.name for p in vendor.glob('aiohttp-*.dist-info')] != ['aiohttp-3.14.3.dist-info']:
+if [p.name for p in vendor.glob('aiohttp-*.dist-info')] != ['aiohttp-3.14.4.dist-info']:
     raise RuntimeError('Ray vendored dependency metadata is inconsistent')

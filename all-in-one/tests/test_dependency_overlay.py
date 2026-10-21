@@ -27,7 +27,7 @@ class DependencyOverlayTests(unittest.TestCase):
             self.assertEqual(module.read_text(),'module unreviewed')
 
     def test_runtime_locks_are_complete_hashed_wheel_inputs(self):
-        for name in ('builder', 'delivery', 'identity', 'serving', 'cpu'):
+        for name in ('builder', 'delivery', 'identity', 'serving', 'cpu', 'certifi', 'ray-vendor'):
             lines = (ROOT/'installer/dependencies'/f'{name}-requirements.lock').read_text().splitlines()
             self.assertTrue(lines)
             for line in lines:
@@ -38,6 +38,14 @@ class DependencyOverlayTests(unittest.TestCase):
             self.assertRegex(cpu, rf'(?m)^{package} @ ')
         self.assertEqual((ROOT/'installer/dependencies/identity-requirements.lock').read_bytes(),
                          (ROOT/'installer/identity-service/requirements.lock').read_bytes())
+
+    def test_python_security_fixes_cover_global_and_vendored_copies(self):
+        for name in ('cpu', 'serving', 'certifi'):
+            lock = (ROOT/'installer/dependencies'/f'{name}-requirements.lock').read_text()
+            self.assertRegex(lock, r'(?m)^certifi @ .*certifi-2026\.10\.19-py3-none-any\.whl ')
+        for name in ('cpu', 'ray-vendor'):
+            lock = (ROOT/'installer/dependencies'/f'{name}-requirements.lock').read_text()
+            self.assertRegex(lock, r'(?m)^aiohttp @ .*aiohttp-3\.14\.4-cp312-cp312-')
 
     def test_source_overlay_is_idempotent_and_rejects_unknown_base(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -76,6 +84,7 @@ class DependencyOverlayTests(unittest.TestCase):
             serving = dockerfile.read_text().split('FROM ${TRITON_BASE} AS triton\n')[1].split('FROM ${PYTHON_BASE} AS delivery')[0]
             self.assertIn('libssl3t64=3.0.13-0ubuntu3.16', serving)
             self.assertIn('/usr/local/cuda-13.4/NsightSystems-cli-2026.5.1', serving)
+            self.assertIn('python3 -m pip install --no-cache-dir --no-deps --require-hashes --upgrade -r /opt/runtime-patches/certifi-requirements.lock', serving)
             self.assertTrue(serving.rstrip().endswith('USER 65532:65532'))
 
 
