@@ -242,6 +242,8 @@ def prepare_source():
     service_auth.prepare_source(source)
     import qualification_overlay
     qualification_overlay.prepare_source(source)
+    import workload_security
+    workload_security.prepare_source(source)
     import dependency_overlay
     dependency_overlay.prepare_source(source)
     return source

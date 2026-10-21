@@ -78,14 +78,9 @@ def install(config, images):
     core.apply(permissions)
     account = 'michelangelo-compute-manager'
     core.apply({'apiVersion': 'v1', 'kind': 'ServiceAccount', 'metadata': metadata(account), 'automountServiceAccountToken': False})
-    # The cluster scheduler puts generic Ray/Spark jobs in the registered runtime
-    # namespace. Grant job management, never unrelated namespaces or Secrets.
-    runtime_rules = [{'apiGroups': ['ray.io'], 'resources': ['rayclusters', 'rayjobs'], 'verbs': ['get', 'list', 'watch', 'create', 'update', 'patch', 'delete']},
-                     {'apiGroups': ['batch'], 'resources': ['jobs'], 'verbs': ['get', 'list', 'watch', 'create', 'update', 'patch', 'delete']},
-                     {'apiGroups': [''], 'resources': ['pods', 'services', 'configmaps', 'events'], 'verbs': ['get', 'list', 'watch', 'create', 'update', 'patch', 'delete']},
-                     {'apiGroups': [''], 'resources': ['pods/log'], 'verbs': ['get']}]
-    core.apply(rbac(account, 'default', runtime_rules))
-    core.apply(rbac(account, core.NS, runtime_rules))
+    # Scheduler credentials only manage Ray resources in the reviewed runtime namespace.
+    import workload_security
+    workload_security.harden_rbac(core)
     kubeconfig = yaml.safe_load((core.WORK / 'kubeconfig').read_text())['clusters'][0]['cluster']
     ca = base64.b64decode(kubeconfig['certificate-authority-data']).decode()
     server = urllib.parse.urlsplit(kubeconfig['server'])
@@ -129,30 +124,10 @@ def install(config, images):
         core.secret('ma-lifecycle-runtime-artifacts', {'AWS_ACCESS_KEY_ID': config['artifact_access_key'] if namespace == 'default' else config['runtime_artifact_access_key'], 'AWS_SECRET_ACCESS_KEY': config['artifact_secret_key'] if namespace == 'default' else config['runtime_artifact_secret_key']}, namespace)
         for name in ('michelangelo-runtime-artifacts', 'ma-lifecycle-runtime-artifacts'):
             core.apply({'apiVersion': 'v1', 'kind': 'ConfigMap', 'metadata': metadata(name, namespace), 'data': storage_config})
-    policy_text = (release / 'ray-runtime-access.example.json').read_text().replace('REPLACE_DIGEST_PINNED_LIFECYCLE_IMAGE', images['examples']['pinned'])
-    policies = json.loads(policy_text)['items']
-    # The dedicated workload account has no general Kubernetes grants. Its
-    # projected, rotating token authenticates SDK calls to the application API;
-    # the API verifies it using TokenReview and an exact service-account list.
-    for item in policies:
-        if item.get('kind') == 'ServiceAccount':
-            item['automountServiceAccountToken'] = True
-    # Credentials are referenced from Kubernetes Secrets, never serialized
-    # into workflow packages or exposed through the Studio input forms.
-    for policy in policies:
-        for rule in policy.get('spec', {}).get('rules', []):
-            patch = json.loads(rule['mutate']['patchesJson6902'])
-            for entry in patch:
-                if entry.get('path', '').endswith('/automountServiceAccountToken'):
-                    entry['value'] = True
-            roots = ['/spec/headGroupSpec/template/spec', '/spec/workerGroupSpecs/0/template/spec'] if rule['name'] == 'dedicated-account-cluster' else ['/spec/template/spec']
-            for root in roots:
-                patch.append({'op': 'add', 'path': root + '/containers/0/envFrom', 'value': [
-                    {'configMapRef': {'name': 'ma-lifecycle-runtime-artifacts'}}, {'secretRef': {'name': 'ma-lifecycle-runtime-artifacts'}}]})
-                # Workflow manifests already provide REGISTRY_ENDPOINT; a
-                # second env entry is rejected by the KubeRay CRD schema.
-            rule['mutate']['patchesJson6902'] = json.dumps(patch)
-    core.apply(policies)
+    core.apply({'apiVersion':'v1','kind':'ServiceAccount','metadata':metadata('michelangelo-lifecycle-runner'),
+                'automountServiceAccountToken':True,'imagePullSecrets':[{'name':'ma-lifecycle-runtime-registry'}]})
+    workload_security.install(core, images)
+    workload_security.verify_manager_identity(core, kubeconfig['server'], ca, runtime_tokens[account], images['examples']['pinned'])
     logs = (release / 'log-service.example.json').read_text().replace('REPLACE_LOG_READER_IMAGE_DIGEST_URI', images['delivery']['pinned'])
     core.apply(json.loads(logs)['items'])
     core.run(['kubectl', '-n', core.NS, 'rollout', 'status', 'deployment/ma-lifecycle-logs', '--timeout=10m'])

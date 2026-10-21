@@ -39,15 +39,28 @@ func (PrincipalAuth) UserAuthenticated(ctx context.Context) (bool, error) {
 	}
 	return true, nil
 }
-func (a PrincipalAuth) UserAuthorized(ctx context.Context, _ string, action Action, resource string) (bool, error) {
+func (a PrincipalAuth) UserAuthorized(ctx context.Context, namespace string, action Action, resource string) (bool, error) {
 	p, ok := GetPrincipal(ctx)
 	if !ok {
 		return false, status.Error(codes.Unauthenticated, "verified identity required")
 	}
-    if p.Service && p.Subject == "system:serviceaccount:ma-system:ma-publication-controller" {
-        if action == Get || action == List || (action == Update && (resource == "Model" || resource == "model" || resource == "models")) { return true, nil }
-        return false, status.Error(codes.PermissionDenied, "publication service is read/finalize only")
-    }
+	if p.Service && p.Subject == "system:serviceaccount:default:michelangelo-lifecycle-runner" {
+		projects := map[string]bool{"oci-ranking-showcase": true, "oci-movielens-showcase": true, "oci-fraud-anomaly-showcase": true, "oci-california-housing-showcase": true, "oci-bert-cola-showcase": true}
+		kind := strings.ToLower(resource)
+		read := action == Get && (kind == "model" || kind == "evaluationreport" || kind == "modelfamily" || kind == "pipelinerun" || kind == "inferenceserver" || kind == "deployment")
+		create := action == Create && (kind == "model" || kind == "evaluationreport" || kind == "modelfamily")
+		update := action == Update && (kind == "inferenceserver" || kind == "deployment")
+		if projects[namespace] && (read || create || update) {
+			return true, nil
+		}
+		return false, status.Error(codes.PermissionDenied, "runtime identity is restricted to catalog lifecycle operations")
+	}
+	if p.Service && p.Subject == "system:serviceaccount:ma-system:ma-publication-controller" {
+		if action == Get || action == List || (action == Update && (resource == "Model" || resource == "model" || resource == "models")) {
+			return true, nil
+		}
+		return false, status.Error(codes.PermissionDenied, "publication service is read/finalize only")
+	}
 	if p.Role != "admin" && p.Role != "operator" {
 		return false, status.Error(codes.PermissionDenied, "application operator access required")
 	}

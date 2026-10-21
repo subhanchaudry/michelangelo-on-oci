@@ -6,7 +6,7 @@ from pathlib import Path
 OUT = Path(__file__).resolve().parent
 parts = ['''<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1160" viewBox="0 0 1600 1160" role="img" aria-labelledby="title desc">
 <title id="title">Michelangelo on OCI reference architecture</title>
-<desc id="desc">All-in-one release 0.12.0-oci.1-rc.1. Public load balancer forwards TCP to Caddy and OAuth2 Proxy on private OKE nodes. OCI IAM authenticates users. Studio, API, controllers and Temporal coordinate Ray training and private Triton serving. MySQL persists metadata, workflow state and identities. Object Storage stores artifacts and lifecycle logs; OCIR holds images. A public build host installs through the private OKE API. This is a source reference, not a production or availability certification.</desc>
+<desc id="desc">All-in-one release 0.12.0-oci.1-rc.2. Public load balancer forwards TCP to Caddy and OAuth2 Proxy on private OKE nodes. OCI IAM authenticates users. Studio, API, controllers and Temporal coordinate Ray training and private Triton serving. MySQL persists metadata, workflow state and identities. Object Storage stores artifacts and lifecycle logs; OCIR holds images. A public build host installs through the private OKE API. This is a source reference, not a production or availability certification.</desc>
 <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="context-stroke"/></marker></defs>
 <style>text{font-family:Arial,Helvetica,sans-serif;fill:#172b3a}.title{font-size:36px;font-weight:700}.subtitle{font-size:18px;fill:#526674}.zone{font-size:17px;font-weight:700;letter-spacing:.5px}.heading{font-size:20px;font-weight:700}.body{font-size:17px}.small{font-size:15px;fill:#526674}.label{font-size:15px;fill:#294f66;paint-order:stroke;stroke:#fff;stroke-width:5px;stroke-linejoin:round}</style>
 <rect width="1600" height="1160" fill="#fff"/>
@@ -39,7 +39,7 @@ def edge(points, label='', lx=0, ly=0, dashed=False, both=False):
 
 
 text(64, 65, 'Michelangelo on OCI', 'title')
-text(64, 96, 'Reference architecture • all-in-one deployment • 0.12.0-oci.1-rc.1', 'subtitle')
+text(64, 96, 'Reference architecture • all-in-one deployment • 0.12.0-oci.1-rc.2', 'subtitle')
 box(70, 145, 280, 100, 'Platform users', ['Browser • Studio • API'])
 box(650, 145, 430, 100, 'Deployment operator', ['Local Terraform or OCI Resource Manager'])
 box(1170, 145, 360, 100, 'OCI IAM identity domain', ['OIDC sign-in • invited users'])

@@ -128,6 +128,8 @@ def begin(core):
     if records and revision is None:
         raise RuntimeError('Prior release has no deployed revision; inspect interrupted upgrade before retrying')
     checkpoint = {'helm_revision':revision,'resources':[],'triggers':[],'ready':False}
+    security = core.WORK/'runtime-security.json'
+    checkpoint['security_profile'] = json.loads(security.read_text()).get('profile', 0) if security.exists() else 0
     core.save(directory/'checkpoint.json',checkpoint)
     # Fresh install: no CRDs or application history exists yet.
     if revision is None:
@@ -195,6 +197,8 @@ def rollback(core, directory):
     set_gate(core,True)
     native_gate(core)
     verify_native_gate(core)
+    if checkpoint.get('security_profile',0) < 2:
+        raise RuntimeError('Rollback to an uncontained runtime is refused; maintenance retained')
     revision=checkpoint.get('helm_revision')
     if not revision or not checkpoint.get('ready'):
         raise RuntimeError('No complete rollback checkpoint; maintenance retained')
@@ -214,6 +218,8 @@ def rollback(core, directory):
         if any(x['metadata']['name']=='ma-publication-controller' for x in current):
             core.run(['kubectl','-n',core.NS,'scale','deployment/ma-publication-controller','--replicas=0'])
     for item in checkpoint['resources']:
+        if item.get('kind') == 'ClusterPolicy' and item['metadata']['name'] == 'michelangelo-lifecycle-runtime-access':
+            continue
         # Apply desired state with fresh optimistic concurrency; preserve actual IDs.
         item.pop('status',None)
         meta=item['metadata']

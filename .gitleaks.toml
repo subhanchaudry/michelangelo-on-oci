@@ -1,0 +1,13 @@
+title = "Michelangelo source secret scanning"
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Reviewed SHA-256 manifest value, not a credential"
+regexTarget = "line"
+regexes = ['''^\s*"platform/releases/v0\.11\.0/ray-runtime-access\.example\.json": "4c7e033e03b6eb7fc76cfb90df4515d5925143df9b1a17a7c6c094f66ef1ee7b",?$''']
+
+[[allowlists]]
+description = "Reviewed Go module integrity checksum, not an OAuth credential"
+regexTarget = "line"
+regexes = ['''peZ/1z27fi9hUOFCAZaHyrpWG5lwe0RJEEEeH0ThlIs=''']
