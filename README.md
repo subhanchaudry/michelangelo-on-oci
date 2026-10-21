@@ -112,6 +112,8 @@ Browser sessions expire after 20 minutes and require a fresh sign-in. Automatic 
 
 The rc.2 runtime confines the compute manager to Ray management in `default`, with read-only Pod/log observation. Native admission validates runtime templates and generated workloads; the shared lifecycle identity is restricted to catalog registration and existing serving targets. This is not isolation between individual catalog workflows. Missing serving targets must be restored by the installer, rather than recreated by a workload with caller-supplied connection settings.
 
+The installer also builds a separate database transport image from pinned MySQL Router 8.4.10 with refreshed OS libraries and records its executable digest in `support-images.json`. Oracle has discontinued the [Router 8.4 series](https://dev.mysql.com/doc/relnotes/mysql-router/26.10/en/); migration to the current Router series requires compatibility qualification. Image-security approval remains an open gate until all application and supporting digests have current scan dispositions.
+
 Upgrades retain maintenance if pre-existing workloads cannot be validated. Drain and review those objects separately; installation does not silently delete them. Rollback to a checkpoint predating runtime containment is refused, with maintenance retained. Use a reviewed forward recovery procedure instead of restoring the older authorization boundary.
 
 ## Automated validation

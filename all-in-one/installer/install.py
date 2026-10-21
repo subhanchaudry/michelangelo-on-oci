@@ -33,7 +33,7 @@ RELEASE = ROOT / 'release'
 NS = 'ma-system'
 APP = 'michelangelo'
 UPSTREAM = 'ed2a2b09ed9fab57e1479f45e84330a78f3ff8d3'
-ROUTER_IMAGE = 'container-registry.oracle.com/mysql/community-router:8.4.6@sha256:468ea2e12477d6c1d8256f575aac33f09a3281531ef982f13bfeea04b1ba02de'
+ROUTER_IMAGE = 'container-registry.oracle.com/mysql/community-router:8.4.10@sha256:d704471c2bb78fa833790dc197959c004d09af5aa18f5f153ff40e7268f54043'
 MYSQL_IMAGE = 'docker.io/library/mysql:8.0@sha256:7dcddc01f13bab2f15cde676d44d01f61fc9f99fe7785e86196dfc07d358ae2b'
 ENVOY_IMAGE = 'docker.io/envoyproxy/envoy:v1.29-latest@sha256:5a292b91adc87aa56146fb9ee52fc85c30570d0f175d95b48cde8035a2e641dd'
 TEMPORAL_IMAGE = 'docker.io/temporalio/server:1.24.2@sha256:16de74d893e813053b82551eb4463c795b368d2029520b4c8fe2e47e1c336bb9'
@@ -450,6 +450,8 @@ def build(config, source, initial_values):
         item.update(installer_source_manifest_sha256=manifest_sha256, release=tag, platform='linux/amd64')
     config['identity_image'] = images['identity']['pinned']
     save(WORK / 'images.json', images)
+    import support_images
+    support_images.build(sys.modules[__name__], config, tag, manifest_sha256)
     return images
 
 
@@ -493,7 +495,7 @@ def deploy(config, source, host, images):
     # private Service before Helm waits for UI readiness to avoid a cycle.
     runtime.prepare_log_service(sys.modules[__name__])
     values_file = save(WORK / 'values.json', values(config, host, images))
-    env = dict(os.environ, MYSQL_ROUTER_IMAGE=ROUTER_IMAGE, MYSQL_ROUTER_HOST=host, MYSQL_ROUTER_PORT='3306',
+    env = dict(os.environ, MYSQL_ROUTER_IMAGE=config['mysql_router_image'], MYSQL_ROUTER_HOST=host, MYSQL_ROUTER_PORT='3306',
                MYSQL_ROUTER_CA_SECRET='michelangelo-mysql-ca', MYSQL_ROUTER_CA_KEY='ca.pem', MYSQL_ROUTER_AUTH_SECRET='michelangelo-router-auth')
     # Preserve checksum-verified source chart; transport is a post-render step.
     args = ['helm', 'upgrade', '--install', APP, str(source / 'helm/michelangelo'), '-n', NS,

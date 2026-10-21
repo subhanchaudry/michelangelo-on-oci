@@ -116,6 +116,8 @@
   "installer/release/scripts/verify-review-bundle.py",
   "installer/release/scripts/verify-upgrade-render.py",
   "installer/runtime.py",
+  "installer/router-runtime.Dockerfile",
+  "installer/support_images.py",
   "installer/runtime_template.go.txt",
   "installer/seed.py",
   "installer/service_auth.py",
