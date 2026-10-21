@@ -3,5 +3,7 @@ FROM container-registry.oracle.com/mysql/community-router@sha256:d704471c2bb78fa
 USER 0:0
 # Update only the OS libraries identified by the refreshed vulnerability scan.
 # Do not upgrade mysql-router-community through a different product series.
-RUN microdnf clean all && microdnf update -y openssl-libs gnutls libevent pcre2 curl libcurl libxml2 glib2 krb5-libs libacl sqlite-libs libcap && microdnf clean all
+# The vendor image also enables internal staging MySQL repositories; OS updates
+# use Oracle Linux repositories only and must not contact those staging hosts.
+RUN microdnf clean all && microdnf --disablerepo='mysql*' update -y openssl-libs gnutls libevent pcre2 curl libcurl libxml2 glib2 krb5-libs libacl sqlite-libs libcap && microdnf clean all
 USER 999:999

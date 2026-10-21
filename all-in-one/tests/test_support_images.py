@@ -35,6 +35,7 @@ class SupportImageTests(unittest.TestCase):
         self.assertIn('@sha256:d704471c2bb78fa833790dc197959c004d09af5aa18f5f153ff40e7268f54043',text)
         command=next(line for line in text.splitlines() if line.startswith('RUN '))
         self.assertNotIn('mysql-router',command)
+        self.assertIn("--disablerepo='mysql*'",command)
         self.assertTrue(text.rstrip().endswith('USER 999:999'))
 
 
