@@ -1,6 +1,7 @@
 """Reviewed dependency corrections applied only to reconstructed source."""
 from pathlib import Path
 import hashlib
+import json
 import shutil
 from identity_overlay import replace
 
@@ -8,7 +9,7 @@ ROOT = Path(__file__).parent
 PYTHON = 'python@sha256:2b4f19dae3a777dfc3b76730bda1e82e1f66ab2a2686fa93ca78edbfb4f04ffe'
 STATIC = 'gcr.io/distroless/static-debian13@sha256:a8a6666cb7b13df7d18fd65b4264c2edafbce92acc0f32c423b5470d7d717665'
 TRITON = 'nvcr.io/nvidia/tritonserver@sha256:1f08352ff9318894ca24bb36a532ad450b1289f7a6aeb163ae752a446c400fe6'
-GO = 'golang@sha256:433f9dc4f8ea3a1ce4e28f9f15d0f7c056b10475307f886d6f1ac1ccc4abd976'
+GO = 'golang@sha256:672c944cfd07599b5f1bb179869270cdc94c6254e41db4d431259693cb286b82'
 COLLECTOR_COMMIT = 'c9ddfc2459dabc4149b8f383df2f6f6325e9b56c'
 
 
@@ -33,12 +34,22 @@ def prepare_collector(original, destination, commit):
 
 def prepare_source(source):
     source = Path(source)
+    module = source/'go/go.mod'
+    if module.exists():
+        reviewed = ROOT/'dependencies/platform'
+        provenance = json.loads((reviewed/'provenance.json').read_text())
+        expected = (reviewed/'go.mod').read_bytes()
+        allowed = {provenance['upstream_patched_go_mod_sha256'], hashlib.sha256(expected).hexdigest()}
+        if hashlib.sha256(module.read_bytes()).hexdigest() not in allowed:
+            raise RuntimeError('Platform module differs from the reviewed dependency base')
+        for name in ('go.mod','go.sum'):
+            shutil.copyfile(reviewed/name, source/'go'/name)
     replace(source/'docker/service.Dockerfile',
         'FROM gcr.io/distroless/base-debian12:latest@sha256:fabbf1c0c357a3d42550111351daed089b20a2c954df13ee2fcff60602515e84',
         'FROM '+STATIC)
     replace(source/'docker/ui-prebuilt.Dockerfile',
         'RUN apk add --no-cache --upgrade libexpat',
-        'RUN apk add --no-cache --upgrade libexpat=2.8.5-r0 pcre2=10.49-r0')
+        'RUN apk add --no-cache --upgrade libexpat=2.9.0-r0 pcre2=10.49-r0 libx11=1.8.14-r0 tiff=4.7.2-r0')
 
 
 def prepare_demo(source):

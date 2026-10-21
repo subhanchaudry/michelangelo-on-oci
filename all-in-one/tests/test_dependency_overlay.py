@@ -12,6 +12,20 @@ import dependency_overlay as overlay
 
 
 class DependencyOverlayTests(unittest.TestCase):
+    def test_platform_and_collector_use_patched_go_and_networking(self):
+        for name in ('platform','collector'):
+            module=(ROOT/'installer/dependencies'/name/'go.mod').read_text()
+            self.assertIn('go 1.26.10',module)
+            self.assertIn('golang.org/x/net v0.60.0',module)
+            self.assertIn('github.com/klauspost/compress v1.18.7',module)
+
+    def test_unknown_platform_module_cannot_be_overwritten(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source=Path(directory);(source/'go').mkdir()
+            module=source/'go/go.mod';module.write_text('module unreviewed')
+            with self.assertRaisesRegex(RuntimeError,'reviewed dependency base'):overlay.prepare_source(source)
+            self.assertEqual(module.read_text(),'module unreviewed')
+
     def test_runtime_locks_are_complete_hashed_wheel_inputs(self):
         for name in ('builder', 'delivery', 'identity', 'serving', 'cpu'):
             lines = (ROOT/'installer/dependencies'/f'{name}-requirements.lock').read_text().splitlines()

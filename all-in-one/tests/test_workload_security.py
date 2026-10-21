@@ -25,6 +25,8 @@ def admission_cases():
     cases=[]
     def add(name,resource,value,allowed):cases.append({'Name':name,'Expression':expressions[resource],'Object':{'spec':value},'Allowed':allowed})
     add('valid cluster','rayclusters',copy.deepcopy(cluster),True)
+    external=copy.deepcopy(cluster);external['headGroupSpec']['serviceType']='LoadBalancer';add('public head service','rayclusters',external,False)
+    external=copy.deepcopy(cluster);external['headGroupSpec']['headService']={'spec':{'type':'LoadBalancer'}};add('custom head service','rayclusters',external,False)
     add('valid pod','pods',copy.deepcopy(pod),True)
     scheduled=copy.deepcopy(pod);scheduled['nodeName']='worker-1'
     add('scheduled pod metadata update','pods',scheduled,True);cases[-1]['Operation']='UPDATE'
