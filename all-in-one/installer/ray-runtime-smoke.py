@@ -4,7 +4,11 @@ import os
 import signal
 
 assert os.geteuid() == 65534, 'Ray qualification must use the workload identity'
-signal.alarm(90)
+def timeout(signum, frame):
+    raise TimeoutError('Ray startup probe deadline expired')
+
+signal.signal(signal.SIGALRM, timeout)
+signal.alarm(120)
 import ray
 
 try:

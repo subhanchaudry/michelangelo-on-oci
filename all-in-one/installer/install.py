@@ -440,12 +440,7 @@ def build(config, source, initial_values):
     digest = json.loads(metadata.read_text())['containerimage.digest']
     images['examples'] = {'image': image, 'digest': digest, 'pinned': config['registry'] + '@' + digest,
                           'source_commit': UPSTREAM, 'python': '3.12', 'ray': '2.56.1', 'security_gate': 'requires-runtime-scan'}
-    # Run a real node and remote task without mounting installer credentials.
-    run(['docker', 'run', '--rm', '--user', '65534:65534', '--memory', '4g',
-         '--cpus', '2', '--shm-size', '256m', '--pids-limit', '512',
-         '--env', 'HOME=/tmp', '--mount',
-         'type=bind,src='+str(ROOT/'ray-runtime-smoke.py')+',dst=/qualification.py,readonly',
-         images['examples']['pinned'], 'python3', '/qualification.py'])
+    qualify_ray_runtime(images['examples']['pinned'])
     image = config['registry'] + ':identity-' + tag
     metadata = source / 'release-build/identity-image.json'
     run(['docker', 'buildx', 'build', '--platform', 'linux/amd64', '--push',
@@ -461,6 +456,57 @@ def build(config, source, initial_values):
     import support_images
     support_images.build(sys.modules[__name__], config, tag, manifest_sha256)
     return images
+
+
+def qualify_ray_runtime(image):
+    """Bound a credential-free workload-identity probe and always remove it."""
+    name = 'ma-ray-qualification-' + secrets.token_hex(8)
+    script = ROOT/'ray-runtime-smoke.py'
+    script.chmod(0o644)
+    report = {'image': image, 'uid': 65534, 'container': name, 'status': 'failed'}
+    try:
+        try:
+            result = subprocess.run([
+                'docker', 'run', '--name', name, '--user', '65534:65534',
+                '--memory', '4g', '--cpus', '2', '--shm-size', '256m',
+                '--pids-limit', '2048', '--env', 'HOME=/tmp', '--mount',
+                'type=bind,src='+str(script)+',dst=/qualification.py,readonly',
+                image, 'python3', '/qualification.py'],
+                capture_output=True, text=True, timeout=180)
+            save(WORK/'ray-qualification.log', result.stdout + result.stderr)
+            report['exit_code'] = result.returncode
+            if result.returncode:
+                raise RuntimeError('Ray startup qualification failed; inspect ray-qualification.log')
+            marker = {'ray_startup': 'passed', 'remote_task': 'passed', 'uid': 65534}
+            if not any(line.strip() == json.dumps(marker) for line in result.stdout.splitlines()):
+                raise RuntimeError('Ray qualification returned no verified remote-task result')
+            report['status'] = 'passed'
+        except subprocess.TimeoutExpired as error:
+            def text(value):
+                return value.decode(errors='replace') if isinstance(value, bytes) else (value or '')
+            save(WORK/'ray-qualification.log', text(error.stdout)+text(error.stderr))
+            report['status'] = 'timed-out'
+            raise RuntimeError('Ray startup qualification exceeded 180 seconds') from error
+    finally:
+        try:
+            inspected = subprocess.run(['docker', 'inspect', name], capture_output=True,
+                                       text=True, timeout=15)
+            if inspected.returncode == 0:
+                item = json.loads(inspected.stdout)[0]
+                save(WORK/'ray-qualification-state.json',
+                     {'state': item['State'], 'image': item['Image']})
+        finally:
+            try:
+                cleanup = subprocess.run(['docker', 'rm', '-f', name], capture_output=True,
+                                         text=True, timeout=30)
+                report['container_removed'] = cleanup.returncode == 0 or 'No such container' in cleanup.stderr
+            except subprocess.TimeoutExpired:
+                report['container_removed'] = False
+            if not report['container_removed']:
+                report['status'] = 'cleanup-failed'
+            save(WORK/'ray-qualification.json', report)
+        if not report['container_removed']:
+            raise RuntimeError('Ray qualification container cleanup failed')
 
 
 def prerequisites(config, images):
