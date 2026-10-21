@@ -47,6 +47,17 @@ class DependencyOverlayTests(unittest.TestCase):
             lock = (ROOT/'installer/dependencies'/f'{name}-requirements.lock').read_text()
             self.assertRegex(lock, r'(?m)^aiohttp @ .*aiohttp-3\.14\.4-cp312-cp312-')
 
+    def test_ray_vendor_closure_matches_the_resolved_cpu_runtime(self):
+        def entries(name):
+            return {line.split(' @ ')[0].replace('-', '_'): line for line in
+                    (ROOT/'installer/dependencies'/name).read_text().splitlines()}
+        vendor = entries('ray-vendor-requirements.lock')
+        cpu = entries('cpu-requirements.lock')
+        self.assertEqual(set(vendor), {'aiohttp', 'aiohappyeyeballs', 'aiosignal',
+                         'attrs', 'frozenlist', 'multidict', 'propcache', 'yarl',
+                         'idna', 'typing_extensions'})
+        self.assertEqual(vendor, {name: cpu[name] for name in vendor})
+
     def test_source_overlay_is_idempotent_and_rejects_unknown_base(self):
         with tempfile.TemporaryDirectory() as directory:
             source = Path(directory); (source/'docker').mkdir()

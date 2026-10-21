@@ -440,6 +440,12 @@ def build(config, source, initial_values):
     digest = json.loads(metadata.read_text())['containerimage.digest']
     images['examples'] = {'image': image, 'digest': digest, 'pinned': config['registry'] + '@' + digest,
                           'source_commit': UPSTREAM, 'python': '3.12', 'ray': '2.56.1', 'security_gate': 'requires-runtime-scan'}
+    # Run a real node and remote task without mounting installer credentials.
+    run(['docker', 'run', '--rm', '--user', '65534:65534', '--memory', '4g',
+         '--cpus', '2', '--shm-size', '256m', '--pids-limit', '512',
+         '--env', 'HOME=/tmp', '--mount',
+         'type=bind,src='+str(ROOT/'ray-runtime-smoke.py')+',dst=/qualification.py,readonly',
+         images['examples']['pinned'], 'python3', '/qualification.py'])
     image = config['registry'] + ':identity-' + tag
     metadata = source / 'release-build/identity-image.json'
     run(['docker', 'buildx', 'build', '--platform', 'linux/amd64', '--push',
