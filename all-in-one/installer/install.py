@@ -65,6 +65,7 @@ def run(args, *, cwd=None, env=None, stdin=None, capture=False, sensitive=False)
                                 text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         save(WORK / 'last-sensitive-command.log', result.stdout)
         if result.returncode:
+            save(WORK / 'command-failures' / (str(time.time_ns()) + '.log'), result.stdout)
             raise RuntimeError('Protected operation failed; inspect last-sensitive-command.log on bootstrap instance')
         return result.stdout
     result = subprocess.run([str(a) for a in args], cwd=cwd, env=env, input=stdin, text=True,
@@ -73,6 +74,7 @@ def run(args, *, cwd=None, env=None, stdin=None, capture=False, sensitive=False)
     if result.returncode:
         if capture:
             save(WORK / 'last-command-error.log', (result.stdout or '') + (result.stderr or ''))
+            save(WORK / 'command-failures' / (str(time.time_ns()) + '.log'), (result.stdout or '') + (result.stderr or ''))
         raise RuntimeError('Command failed: ' + Path(str(args[0])).name)
     return result.stdout if capture else ''
 
@@ -496,7 +498,8 @@ def deploy(config, source, host, images):
     runtime.prepare_log_service(sys.modules[__name__])
     values_file = save(WORK / 'values.json', values(config, host, images))
     env = dict(os.environ, MYSQL_ROUTER_IMAGE=config['mysql_router_image'], MYSQL_ROUTER_HOST=host, MYSQL_ROUTER_PORT='3306',
-               MYSQL_ROUTER_CA_SECRET='michelangelo-mysql-ca', MYSQL_ROUTER_CA_KEY='ca.pem', MYSQL_ROUTER_AUTH_SECRET='michelangelo-router-auth')
+               MYSQL_ROUTER_CA_SECRET='michelangelo-mysql-ca', MYSQL_ROUTER_CA_KEY='ca.pem', MYSQL_ROUTER_AUTH_SECRET='michelangelo-router-auth',
+               MYSQL_ROUTER_IMAGE_RECORD=str(WORK/'support-images.json'), MYSQL_ROUTER_SOURCE_MANIFEST=str(ROOT.parent/'SOURCE-MANIFEST.json'))
     # Preserve checksum-verified source chart; transport is a post-render step.
     args = ['helm', 'upgrade', '--install', APP, str(source / 'helm/michelangelo'), '-n', NS,
             '-f', str(values_file), '--post-renderer', sys.executable, '--post-renderer-args', str(ROOT / 'transport/render.py'),

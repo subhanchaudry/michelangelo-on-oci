@@ -5,9 +5,11 @@ Only chart-labelled apiserver/controllermgr Deployments with a mounted matching
 base.yaml are eligible. No chart source or application credentials are changed.
 """
 import hashlib
+import json
 import os
 import re
 import sys
+from pathlib import Path
 
 import yaml
 
@@ -15,6 +17,7 @@ COMPONENTS = {"apiserver": "apiserver", "controllermgr": "app"}
 ROUTER = "metadata-mysql-router"
 ANNOTATION = "security.michelangelo.ai/mysql-router-sha256"
 IMAGE_RE = re.compile(r"^container-registry\.oracle\.com/mysql/community-router(?::[\w.-]+)?@sha256:[0-9a-f]{64}$")
+DERIVED_IMAGE_RE = re.compile(r"^[a-z0-9][a-z0-9.-]*\.ocir\.io/[a-z0-9_-]+/[a-z0-9][a-z0-9._/-]*@sha256:[0-9a-f]{64}$")
 DNS_RE = re.compile(r"^(?=.{1,253}$)[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$")
 
 
@@ -57,7 +60,17 @@ def settings(env):
     secret = env.get("MYSQL_ROUTER_CA_SECRET", "")
     auth_secret = env.get("MYSQL_ROUTER_AUTH_SECRET", "")
     key = env.get("MYSQL_ROUTER_CA_KEY", "ca.pem")
-    require(bool(IMAGE_RE.fullmatch(image)), "MYSQL_ROUTER_IMAGE must be stock community-router pinned by sha256 digest")
+    if not IMAGE_RE.fullmatch(image):
+        require(bool(DERIVED_IMAGE_RE.fullmatch(image)), "MYSQL_ROUTER_IMAGE must identify a digest-pinned reviewed Router image")
+        try:
+            record = json.loads(Path(env['MYSQL_ROUTER_IMAGE_RECORD']).read_text())['mysql_router']
+            source_digest = hashlib.sha256(Path(env['MYSQL_ROUTER_SOURCE_MANIFEST']).read_bytes()).hexdigest()
+            matches = (record['pinned'] == image and record['runtime_digest'] == image.split('@')[1]
+                       and record['platform'] == 'linux/amd64'
+                       and record['installer_source_manifest_sha256'] == source_digest)
+        except (KeyError, OSError, ValueError, TypeError):
+            matches = False
+        require(matches, "MYSQL_ROUTER_IMAGE requires matching built-image and source records")
     require(bool(DNS_RE.fullmatch(host)) and host != "localhost.localdomain" and not re.fullmatch(r"[0-9.]+", host), "MYSQL_ROUTER_HOST must be a remote DNS hostname, not an IP or config text")
     require(len(secret) <= 253 and bool(re.fullmatch(r"[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?", secret)), "MYSQL_ROUTER_CA_SECRET must name an existing Kubernetes Secret")
     require(len(auth_secret) <= 253 and bool(re.fullmatch(r"[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?", auth_secret)), "MYSQL_ROUTER_AUTH_SECRET must name an existing Router RSA certificate/key Secret")
