@@ -209,30 +209,54 @@ def terminal_workload(item):
 
 
 def execution_profile(spec):
-    """Compare executable fields with the installed controller's full template.
-
-    Only API-injected projected credentials and scheduling/default fields are
-    normalized. Extra containers, mounts, credentials or commands stay visible.
-    """
+    """Preserve the complete template; normalize only known API defaults."""
     spec=copy.deepcopy(spec)
     volumes=spec.get('volumes',[])
-    injected={v['name'] for v in volumes if v['name'].startswith('kube-api-access-') and
-              set(v)=={'name','projected'} and len(v['projected'].get('sources',[]))==3 and
-              all(set(s) in ({'serviceAccountToken'},{'configMap'},{'downwardAPI'}) for s in v['projected']['sources'])}
+    def automatic_projection(volume):
+        if not volume['name'].startswith('kube-api-access-') or set(volume)!={'name','projected'}:return False
+        projected=volume['projected']
+        if set(projected)-{'sources','defaultMode'} or projected.get('defaultMode',420)!=420:return False
+        sources=projected.get('sources',[])
+        if len(sources)!=3:return False
+        token=[s['serviceAccountToken'] for s in sources if set(s)=={'serviceAccountToken'}]
+        ca=[s['configMap'] for s in sources if set(s)=={'configMap'}]
+        namespace=[s['downwardAPI'] for s in sources if set(s)=={'downwardAPI'}]
+        if len(token)!=1 or len(ca)!=1 or len(namespace)!=1:return False
+        t=token[0]
+        if set(t)-{'path','expirationSeconds','audience'} or t.get('path')!='token' or t.get('audience') not in (None,'https://kubernetes.default.svc.cluster.local') or not 600<=t.get('expirationSeconds',0)<=7200:return False
+        if ca[0]!={'name':'kube-root-ca.crt','items':[{'key':'ca.crt','path':'ca.crt'}]}:return False
+        n=copy.deepcopy(namespace[0])
+        for item in n.get('items',[]):
+            if item.get('fieldRef',{}).get('apiVersion')=='v1':item['fieldRef'].pop('apiVersion')
+        return n=={'items':[{'path':'namespace','fieldRef':{'fieldPath':'metadata.namespace'}}]}
+    injected={v['name'] for v in volumes if automatic_projection(v)}
     spec['volumes']=[v for v in volumes if v['name'] not in injected]
     for kind in ('containers','initContainers','ephemeralContainers'):
-        for container in spec.get(kind,[]):
+        spec.setdefault(kind,[])
+        for container in spec[kind]:
             container['volumeMounts']=[m for m in container.get('volumeMounts',[]) if not
-                (m['name'] in injected and m.get('mountPath')=='/var/run/secrets/kubernetes.io/serviceaccount' and m.get('readOnly') is True)]
-        # Container API defaults do not grant code execution or identity. Keep
-        # every field that can alter executable behavior or credential access.
-        fields=('name','image','command','args','env','envFrom','volumeMounts','volumeDevices','securityContext',
-                'lifecycle','livenessProbe','readinessProbe','startupProbe','ports','workingDir')
-        spec[kind]=[{key:c.get(key,[] if key in ('command','args','env','envFrom','volumeMounts','volumeDevices','ports') else None) for key in fields} for c in spec.get(kind,[])]
-    spec.setdefault('serviceAccountName','default')
-    keys=('containers','initContainers','ephemeralContainers','volumes','serviceAccountName','automountServiceAccountToken',
-          'imagePullSecrets','securityContext','hostNetwork','hostPID','hostIPC','shareProcessNamespace','hostAliases','runtimeClassName')
-    return {key:spec.get(key,True if key=='automountServiceAccountToken' else ([] if key in ('containers','initContainers','ephemeralContainers','volumes','imagePullSecrets','hostAliases') else False if key in ('hostNetwork','hostPID','hostIPC','shareProcessNamespace') else None)) for key in keys}
+                (set(m)=={'name','mountPath','readOnly'} and m['name'] in injected and
+                 m['mountPath']=='/var/run/secrets/kubernetes.io/serviceaccount' and m['readOnly'] is True)]
+            for key in ('command','args','env','envFrom','volumeDevices','ports'):container.setdefault(key,[])
+            for key,value in {'resources':{},'securityContext':{},'stdin':False,'stdinOnce':False,'tty':False,
+                              'terminationMessagePath':'/dev/termination-log','terminationMessagePolicy':'File'}.items():container.setdefault(key,value)
+            image=container.get('image','');tag=image.rsplit('/',1)[-1]
+            container.setdefault('imagePullPolicy','Always' if '@' not in image and (':' not in tag or tag.endswith(':latest')) else 'IfNotPresent')
+    spec.setdefault('serviceAccountName',spec.get('serviceAccount') or 'default')
+    if spec.get('serviceAccount') in (None,'',spec['serviceAccountName']):spec.pop('serviceAccount',None)
+    defaults={'automountServiceAccountToken':True,'imagePullSecrets':[],'securityContext':{},
+              'hostNetwork':False,'hostPID':False,'hostIPC':False,'shareProcessNamespace':False,'hostAliases':[],
+              'dnsPolicy':'ClusterFirst','restartPolicy':'Always','schedulerName':'default-scheduler',
+              'terminationGracePeriodSeconds':30,'enableServiceLinks':True,'preemptionPolicy':'PreemptLowerPriority',
+              'priority':0,'hostUsers':True}
+    for key,value in defaults.items():spec.setdefault(key,value)
+    # The scheduler binds nodeName; the standard admission plugin adds only
+    # these two bounded tolerations. Other scheduling changes remain visible.
+    spec.pop('nodeName',None)
+    defaults=[{'key':key,'operator':'Exists','effect':'NoExecute','tolerationSeconds':300}
+              for key in ('node.kubernetes.io/not-ready','node.kubernetes.io/unreachable')]
+    spec['tolerations']=[t for t in spec.get('tolerations',[]) if t not in defaults]
+    return spec
 
 
 def require_owned_platform_workloads(core):

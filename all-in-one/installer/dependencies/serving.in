@@ -5,3 +5,4 @@ xgboost-cpu==2.1.4
 boto3==1.35.99
 torch @ https://download-r2.pytorch.org/whl/cpu/torch-2.6.0%2Bcpu-cp312-cp312-linux_x86_64.whl#sha256=59e78aa0c690f70734e42670036d6b541930b8eabbaa18d94e090abf14cc4d91
 certifi==2026.10.19
+virtualenv==21.14.9

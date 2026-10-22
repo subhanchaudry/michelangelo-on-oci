@@ -107,8 +107,54 @@ class WorkloadSecurityTests(unittest.TestCase):
         pod={'kind':'Pod','metadata':{'name':'identity-pod','uid':'pod','ownerReferences':[{'controller':True,'uid':'replica','kind':'ReplicaSet','name':'identity-rs'}]},'spec':copy.deepcopy(template),'status':{'phase':'Running'}}
         core=types.SimpleNamespace(NS='ma-system',APP='michelangelo',run=lambda args,**k:'' if args[0]=='helm' else json.dumps({'items':[deployment,replica,pod]}))
         security.require_owned_platform_workloads(core)
-        pod['spec']['containers'][0]['image']='attacker:latest'
-        with self.assertRaisesRegex(RuntimeError,'differs'):security.require_owned_platform_workloads(core)
+        for change in (lambda spec:spec['containers'][0].update(image='unapproved:latest'),
+                       lambda spec:spec.update(dnsPolicy='None',dnsConfig={'nameservers':['192.0.2.1']}),
+                       lambda spec:spec['containers'][0].update(terminationMessagePath='/custom-path')):
+            pod['spec']=copy.deepcopy(template);change(pod['spec'])
+            with self.assertRaisesRegex(RuntimeError,'differs'):security.require_owned_platform_workloads(core)
+
+    def test_full_platform_template_keeps_network_and_container_fields(self):
+        template={'containers':[{'name':'api','image':IMAGE}]}
+        for change in (
+            lambda p:p.update(dnsPolicy='None',dnsConfig={'nameservers':['192.0.2.1']}),
+            lambda p:p.update(hostname='alternate',subdomain='alternate'),
+            lambda p:p.update(enableServiceLinks=False),
+            lambda p:p.update(futurePodField={'enabled':True}),
+            lambda p:p['containers'][0].update(terminationMessagePath='/custom-path'),
+            lambda p:p['containers'][0].update(restartPolicy='Always'),
+        ):
+            pod=copy.deepcopy(template);change(pod)
+            self.assertNotEqual(security.execution_profile(template),security.execution_profile(pod))
+
+    def test_platform_template_tolerates_only_known_api_defaults(self):
+        template={'containers':[{'name':'api','image':IMAGE}]}
+        pod=copy.deepcopy(template);pod.update(nodeName='scheduled-worker',dnsPolicy='ClusterFirst',
+            restartPolicy='Always',schedulerName='default-scheduler',terminationGracePeriodSeconds=30,
+            enableServiceLinks=True,preemptionPolicy='PreemptLowerPriority',priority=0,
+            serviceAccountName='default',serviceAccount='default',securityContext={},
+            tolerations=[{'key':key,'operator':'Exists','effect':'NoExecute','tolerationSeconds':300}
+                         for key in ('node.kubernetes.io/not-ready','node.kubernetes.io/unreachable')])
+        pod['containers'][0].update(imagePullPolicy='IfNotPresent',terminationMessagePath='/dev/termination-log',
+                                   terminationMessagePolicy='File',resources={})
+        self.assertEqual(security.execution_profile(template),security.execution_profile(pod))
+        pod['tolerations'][0]['tolerationSeconds']=3600
+        self.assertNotEqual(security.execution_profile(template),security.execution_profile(pod))
+
+    def test_only_standard_bounded_api_projection_is_normalized(self):
+        template={'containers':[{'name':'api','image':IMAGE}]}
+        pod=copy.deepcopy(template);pod['volumes']=[{'name':'kube-api-access-sample','projected':{
+            'defaultMode':420,'sources':[{'serviceAccountToken':{'path':'token','expirationSeconds':3607}},
+            {'configMap':{'name':'kube-root-ca.crt','items':[{'key':'ca.crt','path':'ca.crt'}]}},
+            {'downwardAPI':{'items':[{'path':'namespace','fieldRef':{'apiVersion':'v1','fieldPath':'metadata.namespace'}}]}}]}}]
+        pod['containers'][0]['volumeMounts']=[{'name':'kube-api-access-sample',
+            'readOnly':True,'mountPath':'/var/run/secrets/kubernetes.io/serviceaccount'}]
+        self.assertEqual(security.execution_profile(template),security.execution_profile(pod))
+        for change in (lambda projected:projected['sources'][0]['serviceAccountToken'].update(audience='unapproved'),
+                       lambda projected:projected['sources'][0]['serviceAccountToken'].update(expirationSeconds=86400),
+                       lambda projected:projected['sources'][1]['configMap'].update(name='unapproved'),
+                       lambda projected:projected['sources'][2]['downwardAPI']['items'][0]['fieldRef'].update(fieldPath='metadata.name')):
+            modified=copy.deepcopy(pod);change(modified['volumes'][0]['projected'])
+            self.assertNotEqual(security.execution_profile(template),security.execution_profile(modified))
 
     def test_all_policies_fail_closed_and_have_no_caller_exemption(self):
         for policy in security.documents(IMAGE):

@@ -29,6 +29,7 @@
   "installer/dependencies/ray-vendor-requirements.lock",
   "installer/dependencies/serving-requirements.lock",
   "installer/dependencies/serving.in",
+  "installer/dependencies/virtualenv-requirements.lock",
   "installer/dependency_overlay.py",
   "installer/distribution.json",
   "installer/examples/mvp-pipeline/dataset.json",

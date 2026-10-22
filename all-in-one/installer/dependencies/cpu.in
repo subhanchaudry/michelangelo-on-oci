@@ -11,3 +11,4 @@ s3fs==2026.9.0
 boto3==1.43.106
 aiobotocore==3.9.2
 certifi==2026.10.19
+virtualenv==21.14.9

@@ -27,7 +27,7 @@ class DependencyOverlayTests(unittest.TestCase):
             self.assertEqual(module.read_text(),'module unreviewed')
 
     def test_runtime_locks_are_complete_hashed_wheel_inputs(self):
-        for name in ('builder', 'delivery', 'identity', 'serving', 'cpu', 'certifi', 'ray-vendor'):
+        for name in ('builder', 'delivery', 'identity', 'serving', 'cpu', 'certifi', 'ray-vendor', 'virtualenv'):
             lines = (ROOT/'installer/dependencies'/f'{name}-requirements.lock').read_text().splitlines()
             self.assertTrue(lines)
             for line in lines:
@@ -46,6 +46,15 @@ class DependencyOverlayTests(unittest.TestCase):
         for name in ('cpu', 'ray-vendor'):
             lock = (ROOT/'installer/dependencies'/f'{name}-requirements.lock').read_text()
             self.assertRegex(lock, r'(?m)^aiohttp @ .*aiohttp-3\.14\.4-cp312-cp312-')
+
+    def test_virtualenv_security_pin_covers_both_runtime_locations(self):
+        for name in ('cpu','serving','virtualenv'):
+            lock=(ROOT/'installer/dependencies'/f'{name}-requirements.lock').read_text()
+            self.assertRegex(lock, r'(?m)^virtualenv @ .*virtualenv-21\.14\.9-py3-none-any\.whl ')
+        closure=(ROOT/'installer/dependencies/virtualenv-requirements.lock').read_text().splitlines()
+        self.assertEqual({x.split(' @ ')[0].replace('_','-') for x in closure},
+                         {'virtualenv','distlib','filelock','packaging','platformdirs','python-discovery'})
+        self.assertIn('-r /opt/runtime-patches/virtualenv-requirements.lock', (ROOT/'installer/dependency_overlay.py').read_text())
 
     def test_ray_vendor_closure_matches_the_resolved_cpu_runtime(self):
         def entries(name):

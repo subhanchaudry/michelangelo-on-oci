@@ -54,7 +54,7 @@ def prepare_source(source):
 
 def prepare_demo(source):
     source = Path(source)
-    for name in ('delivery', 'serving', 'cpu', 'builder', 'ray-vendor', 'certifi'):
+    for name in ('delivery', 'serving', 'cpu', 'builder', 'ray-vendor', 'certifi', 'virtualenv'):
         target = source/'docker'/(name+'-requirements.lock')
         shutil.copyfile(ROOT/'dependencies'/(name+'-requirements.lock'), target)
         target.chmod(0o644)
@@ -79,7 +79,8 @@ def prepare_demo(source):
         'FROM ${TRITON_BASE} AS triton\n'
         'USER 0:0\n'
         'COPY docker/certifi-requirements.lock /opt/runtime-patches/certifi-requirements.lock\n'
-        'RUN python3 -m pip install --no-cache-dir --no-deps --require-hashes --upgrade -r /opt/runtime-patches/certifi-requirements.lock\n'
+        'COPY docker/virtualenv-requirements.lock /opt/runtime-patches/virtualenv-requirements.lock\n'
+        'RUN python3 -m pip install --no-cache-dir --no-deps --require-hashes --upgrade -r /opt/runtime-patches/certifi-requirements.lock -r /opt/runtime-patches/virtualenv-requirements.lock\n'
         'RUN apt-get update && apt-get purge -y linux-libc-dev libssl-dev nsight-systems-cli-2026.5.1 && '
         'apt-get install -y --no-install-recommends libssl3t64=3.0.13-0ubuntu3.16 openssl=3.0.13-0ubuntu3.16 && '
         'rm -rf /usr/local/cuda-13.4/NsightSystems-cli-2026.5.1 /var/lib/apt/lists/*\n'

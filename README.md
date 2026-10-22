@@ -2,7 +2,7 @@
 
 Deploy Michelangelo AI on Oracle Cloud Infrastructure using Terraform, OCI Resource Manager, or an all-in-one installer.
 
-This repository contains deployment source for an internal pilot or customer evaluation. The complete installer selects Michelangelo **v0.12.0**, pinned to upstream commit `ed2a2b09ed9fab57e1479f45e84330a78f3ff8d3`, and applies the included OCI integration overlays. The customer package version is **0.12.0-oci.1-rc.2**.
+This repository contains deployment source for an internal pilot or customer evaluation. The complete installer selects Michelangelo **v0.12.0**, pinned to upstream commit `ed2a2b09ed9fab57e1479f45e84330a78f3ff8d3`, and applies the included OCI integration overlays. The customer package version is **0.12.0-oci.1-rc.2**. The candidate includes complete workload-template checks during upgrades and hash-pinned Python runtime security updates; these changes require validation against each site’s exact package and image digests.
 
 ## Choose one deployment path
 
