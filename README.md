@@ -2,7 +2,7 @@
 
 Deploy Michelangelo AI on Oracle Cloud Infrastructure using Terraform, OCI Resource Manager, or an all-in-one installer.
 
-This repository contains deployment source for an internal pilot or customer evaluation. The complete installer selects Michelangelo **v0.12.0**, pinned to upstream commit `ed2a2b09ed9fab57e1479f45e84330a78f3ff8d3`, and applies the included OCI integration overlays. The customer package version is **0.12.0-oci.1-rc.1**.
+This repository contains deployment source for an internal pilot or customer evaluation. The complete installer selects Michelangelo **v0.12.0**, pinned to upstream commit `ed2a2b09ed9fab57e1479f45e84330a78f3ff8d3`, and applies the included OCI integration overlays. The customer package version is **0.12.0-oci.1-rc.2**. The candidate includes complete workload-template checks during upgrades and hash-pinned Python runtime security updates; these changes require validation against each site’s exact package and image digests.
 
 ## Choose one deployment path
 
@@ -52,11 +52,11 @@ Run from the repository root. Keep release ZIPs and deployment workspaces outsid
 ```sh
 python3 all-in-one/scripts/check-publication.py
 python3 all-in-one/scripts/package-stack.py \
-  --profile all-in-one --output ../releases/michelangelo-all-in-one-0.12.0-oci.1-rc.1.zip
+  --profile all-in-one --output ../releases/michelangelo-all-in-one-0.12.0-oci.1-rc.2.zip
 python3 all-in-one/scripts/package-stack.py \
-  --profile terraform --output ../releases/michelangelo-terraform-0.12.0-oci.1-rc.1.zip
+  --profile terraform --output ../releases/michelangelo-terraform-0.12.0-oci.1-rc.2.zip
 python3 all-in-one/scripts/package-stack.py \
-  --profile resource-manager --output ../releases/michelangelo-resource-manager-0.12.0-oci.1-rc.1.zip
+  --profile resource-manager --output ../releases/michelangelo-resource-manager-0.12.0-oci.1-rc.2.zip
 ```
 
 Verify a downloaded archive with `shasum -a 256 -c <archive>.sha256` from its containing directory. A checksum detects changed bytes; it is not a publisher signature. Use a trusted source for both archive and checksum.
@@ -67,7 +67,7 @@ Verify a downloaded archive with `shasum -a 256 -c <archive>.sha256` from its co
 
 ```sh
 mkdir -p ../private-deployments/my-site
-unzip ../releases/michelangelo-all-in-one-0.12.0-oci.1-rc.1.zip -d ../private-deployments/my-site
+unzip ../releases/michelangelo-all-in-one-0.12.0-oci.1-rc.2.zip -d ../private-deployments/my-site
 cd ../private-deployments/my-site
 cp terraform.tfvars.example terraform.tfvars
 # Edit every placeholder and review capacity, IAM and network settings.
@@ -98,6 +98,8 @@ For Resource Manager, upload the **resource-manager ZIP** and complete its form.
 
 ## Verify a new site
 
+The candidate includes the 172-check acceptance contract. Run the evidence tools from an extracted all-in-one ZIP; initialization creates pending checks and does not run tests. Keep records and their referenced evidence outside the source repository. Bind every record to the exact cluster, package manifest and executable image inventory.
+
 - Open `application_url`, sign in with an invited account, and verify an uninvited user is denied. Test a second user's role, removal, session revocation and restoration before sharing the site.
 - Submit a training run through Studio. Verify the source revision, successful workflow, persisted logs/artifacts and checksums. A registered model must stay pending until successful outputs and evaluation permit publication; failed candidates must remain ineligible.
 - Run batch prediction, inspect persisted output, deploy an eligible model, test prediction and invalid input, then suspend it. Verify ineligible models cannot be deployed. Start with small CPU examples and run larger model checks sequentially within available capacity.
@@ -107,6 +109,23 @@ For Resource Manager, upload the **resource-manager ZIP** and complete its form.
 The reference implementation exercised eight real training flows and offline lifecycle flows, plus representative serving, Studio and restoration checks. **This curated customer package has not yet been applied to a fresh customer site.** Those results do not certify a new tenancy or constitute full acceptance. Image dependency findings remain to be reviewed and remediated; a private pilot's security exceptions do not transfer to customers. Scan the built application and supporting images and resolve or explicitly accept findings under your own policy before use.
 
 Browser sessions expire after 20 minutes and require a fresh sign-in. Automatic token refresh is disabled while OCI refresh interoperability is being qualified. Token signature and binding checks remain enabled. The application directory preserves roles and removals across installer reruns; initial invitation variables do not continuously overwrite it. Project-level team isolation and high availability are outside this pilot profile.
+
+The rc.2 runtime confines the compute manager to Ray management in `default`, with read-only Pod/log observation. Native admission validates runtime templates and generated workloads; the shared lifecycle identity is restricted to catalog registration and existing serving targets. This is not isolation between individual catalog workflows. Missing serving targets must be restored by the installer, rather than recreated by a workload with caller-supplied connection settings.
+
+The installer also builds a separate database transport image from pinned MySQL Router 8.4.10 with refreshed OS libraries and records its executable digest in `support-images.json`. Oracle has discontinued the [Router 8.4 series](https://dev.mysql.com/doc/relnotes/mysql-router/26.10/en/); migration to the current Router series requires compatibility qualification. Image-security approval remains an open gate until all application and supporting digests have current scan dispositions.
+
+Upgrades retain maintenance if pre-existing workloads cannot be validated. Drain and review those objects separately; installation does not silently delete them. Rollback to a checkpoint predating runtime containment is refused, with maintenance retained. Use a reviewed forward recovery procedure instead of restoring the older authorization boundary.
+
+## Automated validation
+
+Install Python 3.12+ and PyYAML 6.0.3, then run:
+
+```sh
+python3 -B -m unittest discover -s all-in-one/tests -p 'test_*.py'
+python3 -B all-in-one/scripts/check-source.py --work-dir /tmp/ma-source-validation
+```
+
+The source check requires Git and Go with automatic toolchain selection. It verifies the pinned upstream commit, reconstructs the overlays, tests identity, API, scheduler and lifecycle controllers, evaluates the actual admission expressions, and checks SDK token rotation. Use a new empty work directory. GitHub Actions also validates all three extracted Terraform profiles and scans for secrets. These offline checks do not establish live OCI acceptance.
 
 ## Updates, recovery and cost
 

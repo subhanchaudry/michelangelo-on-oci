@@ -33,7 +33,7 @@ RELEASE = ROOT / 'release'
 NS = 'ma-system'
 APP = 'michelangelo'
 UPSTREAM = 'ed2a2b09ed9fab57e1479f45e84330a78f3ff8d3'
-ROUTER_IMAGE = 'container-registry.oracle.com/mysql/community-router:8.4.6@sha256:468ea2e12477d6c1d8256f575aac33f09a3281531ef982f13bfeea04b1ba02de'
+ROUTER_IMAGE = 'container-registry.oracle.com/mysql/community-router:8.4.10@sha256:d704471c2bb78fa833790dc197959c004d09af5aa18f5f153ff40e7268f54043'
 MYSQL_IMAGE = 'docker.io/library/mysql:8.0@sha256:7dcddc01f13bab2f15cde676d44d01f61fc9f99fe7785e86196dfc07d358ae2b'
 ENVOY_IMAGE = 'docker.io/envoyproxy/envoy:v1.29-latest@sha256:5a292b91adc87aa56146fb9ee52fc85c30570d0f175d95b48cde8035a2e641dd'
 TEMPORAL_IMAGE = 'docker.io/temporalio/server:1.24.2@sha256:16de74d893e813053b82551eb4463c795b368d2029520b4c8fe2e47e1c336bb9'
@@ -65,6 +65,7 @@ def run(args, *, cwd=None, env=None, stdin=None, capture=False, sensitive=False)
                                 text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         save(WORK / 'last-sensitive-command.log', result.stdout)
         if result.returncode:
+            save(WORK / 'command-failures' / (str(time.time_ns()) + '.log'), result.stdout)
             raise RuntimeError('Protected operation failed; inspect last-sensitive-command.log on bootstrap instance')
         return result.stdout
     result = subprocess.run([str(a) for a in args], cwd=cwd, env=env, input=stdin, text=True,
@@ -73,6 +74,7 @@ def run(args, *, cwd=None, env=None, stdin=None, capture=False, sensitive=False)
     if result.returncode:
         if capture:
             save(WORK / 'last-command-error.log', (result.stdout or '') + (result.stderr or ''))
+            save(WORK / 'command-failures' / (str(time.time_ns()) + '.log'), (result.stdout or '') + (result.stderr or ''))
         raise RuntimeError('Command failed: ' + Path(str(args[0])).name)
     return result.stdout if capture else ''
 
@@ -242,6 +244,8 @@ def prepare_source():
     service_auth.prepare_source(source)
     import qualification_overlay
     qualification_overlay.prepare_source(source)
+    import workload_security
+    workload_security.prepare_source(source)
     import dependency_overlay
     dependency_overlay.prepare_source(source)
     return source
@@ -436,6 +440,7 @@ def build(config, source, initial_values):
     digest = json.loads(metadata.read_text())['containerimage.digest']
     images['examples'] = {'image': image, 'digest': digest, 'pinned': config['registry'] + '@' + digest,
                           'source_commit': UPSTREAM, 'python': '3.12', 'ray': '2.56.1', 'security_gate': 'requires-runtime-scan'}
+    qualify_ray_runtime(images['examples']['pinned'])
     image = config['registry'] + ':identity-' + tag
     metadata = source / 'release-build/identity-image.json'
     run(['docker', 'buildx', 'build', '--platform', 'linux/amd64', '--push',
@@ -448,7 +453,60 @@ def build(config, source, initial_values):
         item.update(installer_source_manifest_sha256=manifest_sha256, release=tag, platform='linux/amd64')
     config['identity_image'] = images['identity']['pinned']
     save(WORK / 'images.json', images)
+    import support_images
+    support_images.build(sys.modules[__name__], config, tag, manifest_sha256)
     return images
+
+
+def qualify_ray_runtime(image):
+    """Bound a credential-free workload-identity probe and always remove it."""
+    name = 'ma-ray-qualification-' + secrets.token_hex(8)
+    script = ROOT/'ray-runtime-smoke.py'
+    script.chmod(0o644)
+    report = {'image': image, 'uid': 65534, 'container': name, 'status': 'failed'}
+    try:
+        try:
+            result = subprocess.run([
+                'docker', 'run', '--name', name, '--user', '65534:65534',
+                '--memory', '4g', '--cpus', '2', '--shm-size', '256m',
+                '--pids-limit', '2048', '--env', 'HOME=/tmp', '--mount',
+                'type=bind,src='+str(script)+',dst=/qualification.py,readonly',
+                image, 'python3', '/qualification.py'],
+                capture_output=True, text=True, timeout=180)
+            save(WORK/'ray-qualification.log', result.stdout + result.stderr)
+            report['exit_code'] = result.returncode
+            if result.returncode:
+                raise RuntimeError('Ray startup qualification failed; inspect ray-qualification.log')
+            marker = {'ray_startup': 'passed', 'remote_task': 'passed', 'uid': 65534}
+            if not any(line.strip() == json.dumps(marker) for line in result.stdout.splitlines()):
+                raise RuntimeError('Ray qualification returned no verified remote-task result')
+            report['status'] = 'passed'
+        except subprocess.TimeoutExpired as error:
+            def text(value):
+                return value.decode(errors='replace') if isinstance(value, bytes) else (value or '')
+            save(WORK/'ray-qualification.log', text(error.stdout)+text(error.stderr))
+            report['status'] = 'timed-out'
+            raise RuntimeError('Ray startup qualification exceeded 180 seconds') from error
+    finally:
+        try:
+            inspected = subprocess.run(['docker', 'inspect', name], capture_output=True,
+                                       text=True, timeout=15)
+            if inspected.returncode == 0:
+                item = json.loads(inspected.stdout)[0]
+                save(WORK/'ray-qualification-state.json',
+                     {'state': item['State'], 'image': item['Image']})
+        finally:
+            try:
+                cleanup = subprocess.run(['docker', 'rm', '-f', name], capture_output=True,
+                                         text=True, timeout=30)
+                report['container_removed'] = cleanup.returncode == 0 or 'No such container' in cleanup.stderr
+            except subprocess.TimeoutExpired:
+                report['container_removed'] = False
+            if not report['container_removed']:
+                report['status'] = 'cleanup-failed'
+            save(WORK/'ray-qualification.json', report)
+        if not report['container_removed']:
+            raise RuntimeError('Ray qualification container cleanup failed')
 
 
 def prerequisites(config, images):
@@ -491,8 +549,9 @@ def deploy(config, source, host, images):
     # private Service before Helm waits for UI readiness to avoid a cycle.
     runtime.prepare_log_service(sys.modules[__name__])
     values_file = save(WORK / 'values.json', values(config, host, images))
-    env = dict(os.environ, MYSQL_ROUTER_IMAGE=ROUTER_IMAGE, MYSQL_ROUTER_HOST=host, MYSQL_ROUTER_PORT='3306',
-               MYSQL_ROUTER_CA_SECRET='michelangelo-mysql-ca', MYSQL_ROUTER_CA_KEY='ca.pem', MYSQL_ROUTER_AUTH_SECRET='michelangelo-router-auth')
+    env = dict(os.environ, MYSQL_ROUTER_IMAGE=config['mysql_router_image'], MYSQL_ROUTER_HOST=host, MYSQL_ROUTER_PORT='3306',
+               MYSQL_ROUTER_CA_SECRET='michelangelo-mysql-ca', MYSQL_ROUTER_CA_KEY='ca.pem', MYSQL_ROUTER_AUTH_SECRET='michelangelo-router-auth',
+               MYSQL_ROUTER_IMAGE_RECORD=str(WORK/'support-images.json'), MYSQL_ROUTER_SOURCE_MANIFEST=str(ROOT.parent/'SOURCE-MANIFEST.json'))
     # Preserve checksum-verified source chart; transport is a post-render step.
     args = ['helm', 'upgrade', '--install', APP, str(source / 'helm/michelangelo'), '-n', NS,
             '-f', str(values_file), '--post-renderer', sys.executable, '--post-renderer-args', str(ROOT / 'transport/render.py'),

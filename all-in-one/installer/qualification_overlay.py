@@ -1,5 +1,6 @@
 """Qualification changes are overlays; the inherited release stays immutable."""
 from pathlib import Path
+import json
 from identity_overlay import replace
 
 ROOT = Path(__file__).parent
@@ -8,6 +9,19 @@ def prepare_source(source):
     source = Path(source)
     for path in (ROOT / 'qualification').glob('*.go'):
         (source/'go/api/handler'/path.name).write_bytes(path.read_bytes())
+    catalog = json.loads((ROOT/'release/platform/serving/lifecycle/catalog.json').read_text())
+    projects = {}
+    for model in catalog['models']:
+        pipelines = projects.setdefault(model['project'], {})
+        for name in [model['demo'], *[p['name'] for p in model['pipelines']]]:
+            pipelines[name] = model['demo']
+    lines = ['package handler', 'var runnerPipelines = map[string]map[string]string{']
+    for project, pipelines in sorted(projects.items()):
+        lines.append(json.dumps(project)+': {')
+        lines.extend(json.dumps(name)+': '+json.dumps(demo)+',' for name,demo in sorted(pipelines.items()))
+        lines.append('},')
+    (source/'go/api/handler/runner_catalog.go').write_text('\n'.join(lines+['}'])+'\n')
+    prepare_runner_guards(source)
     prepare_tests(source)
     prepare_controller_tests(source)
     target = source/'go/api/handler/handler.go'
@@ -139,3 +153,29 @@ func qualifiedControllerContext() context.Context {
  &v2pb.Model{ObjectMeta:metav1.ObjectMeta{Name:"test-model-v1",Namespace:"test-namespace",Labels:map[string]string{"michelangelo.ai/eligible":"true"},Annotations:map[string]string{"michelangelo.ai/publication-state":"eligible"}},Spec:v2pb.ModelSpec{SourcePipelineRun:&apipb.ResourceIdentifier{Name:"source",Namespace:"test-namespace"}}},
  &v2pb.PipelineRun{ObjectMeta:metav1.ObjectMeta{Name:"source",Namespace:"test-namespace"},Status:v2pb.PipelineRunStatus{State:v2pb.PIPELINE_RUN_STATE_SUCCEEDED}}).''',
  'michelangelo.ai/publication-state')
+
+
+def prepare_runner_guards(source):
+    target = Path(source)/'go/api/handler/handler.go'
+    text = target.read_text()
+    if 'handler.validateRunnerMutation(ctx, obj, nil)' in text:
+        return
+    for signature, guard in (
+        ('func (handler *apiHandler) Create(', 'if err := handler.validateRunnerMutation(ctx, obj, nil); err != nil { return err }'),
+        ('func (handler *apiHandler) UpdateStatus(', 'if err := denyRunner(ctx); err != nil { return err }'),
+        ('func (handler *apiHandler) Delete(', 'if err := denyRunner(ctx); err != nil { return err }'),
+        ('func (handler *apiHandler) List(', 'if err := denyRunner(ctx); err != nil { return err }'),
+        ('func (handler *apiHandler) DeleteCollection(', 'if err := denyRunner(ctx); err != nil { return err }')):
+        start = text.index(signature)
+        body = text.index(' error {', start)+len(' error {')
+        text = text[:body]+'\n    '+guard+text[body:]
+    text = text.replace('auth.PreserveOwner(obj, original)', 'auth.PreserveOwner(obj, original)\n    if err := handler.validateRunnerMutation(ctx, obj, original); err != nil { return err }',1)
+    start = text.index('func (handler *apiHandler) Get(')
+    end = text.index('\n}\n',start)
+    section = text[start:end]
+    body = section.index(' error {')+len(' error {')
+    section = section[:body]+'\n    if err := runnerRead(ctx, namespace, name, obj); err != nil { return err }'+section[body:]
+    section = section.replace('return nil','return runnerResult(ctx, obj)')
+    section = section.replace('return surfaceGrpcError(err, "get", namespace, name)', 'if err == nil { return runnerResult(ctx, obj) }; return surfaceGrpcError(err, "get", namespace, name)')
+    text = text[:start]+section+text[end:]
+    target.write_text(text)
