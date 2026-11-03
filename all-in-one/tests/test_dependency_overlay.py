@@ -50,7 +50,7 @@ class DependencyOverlayTests(unittest.TestCase):
     def test_virtualenv_security_pin_covers_both_runtime_locations(self):
         for name in ('cpu','serving','virtualenv'):
             lock=(ROOT/'installer/dependencies'/f'{name}-requirements.lock').read_text()
-            self.assertRegex(lock, r'(?m)^virtualenv @ .*virtualenv-21\.14\.9-py3-none-any\.whl ')
+            self.assertRegex(lock, r'(?m)^virtualenv @ .*virtualenv-21\.14\.13-py3-none-any\.whl ')
         closure=(ROOT/'installer/dependencies/virtualenv-requirements.lock').read_text().splitlines()
         self.assertEqual({x.split(' @ ')[0].replace('_','-') for x in closure},
                          {'virtualenv','distlib','filelock','packaging','platformdirs','python-discovery'})

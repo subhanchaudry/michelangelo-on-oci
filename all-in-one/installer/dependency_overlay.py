@@ -49,7 +49,7 @@ def prepare_source(source):
         'FROM '+STATIC)
     replace(source/'docker/ui-prebuilt.Dockerfile',
         'RUN apk add --no-cache --upgrade libexpat',
-        'RUN apk add --no-cache --upgrade libexpat=2.10.0-r0 pcre2=10.49-r0 libx11=1.8.14-r0 tiff=4.7.2-r0')
+        'RUN apk add --no-cache --upgrade libexpat=2.10.0-r0 pcre2=10.49-r0 libx11=1.8.14-r0 tiff=4.7.2-r0 brotli-libs=1.2.1-r0 curl=8.23.0-r0 libcurl=8.23.0-r0')
 
 
 def prepare_demo(source):
@@ -82,6 +82,6 @@ def prepare_demo(source):
         'COPY docker/virtualenv-requirements.lock /opt/runtime-patches/virtualenv-requirements.lock\n'
         'RUN python3 -m pip install --no-cache-dir --no-deps --require-hashes --upgrade -r /opt/runtime-patches/certifi-requirements.lock -r /opt/runtime-patches/virtualenv-requirements.lock\n'
         'RUN apt-get update && apt-get purge -y linux-libc-dev libssl-dev nsight-systems-cli-2026.5.1 && '
-        'apt-get install -y --no-install-recommends libssl3t64=3.0.13-0ubuntu3.16 openssl=3.0.13-0ubuntu3.16 && '
+        'apt-get install -y --no-install-recommends libssl3t64=3.0.13-0ubuntu3.16 openssl=3.0.13-0ubuntu3.16 libbrotli1=1.1.0-2ubuntu0.1 && '
         'rm -rf /usr/local/cuda-13.4/NsightSystems-cli-2026.5.1 /var/lib/apt/lists/*\n'
         'COPY --from=serving-dependencies')

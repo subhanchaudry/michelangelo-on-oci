@@ -2,5 +2,6 @@
   "upstream_patched_go_mod_sha256": "e697d56234e2bffcc0ec2d1aada3a4fe7ec5032f436d903fea71fed19f5e583c",
   "go": "1.26.10",
   "golang.org/x/net": "v0.60.0",
-  "github.com/klauspost/compress": "v1.18.7"
+  "github.com/klauspost/compress": "v1.18.7",
+  "github.com/go-jose/go-jose/v4": "v4.1.6"
 }
