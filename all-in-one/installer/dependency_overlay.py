@@ -49,7 +49,7 @@ def prepare_source(source):
         'FROM '+STATIC)
     replace(source/'docker/ui-prebuilt.Dockerfile',
         'RUN apk add --no-cache --upgrade libexpat',
-        'RUN apk add --no-cache --upgrade libexpat=2.9.0-r0 pcre2=10.49-r0 libx11=1.8.14-r0 tiff=4.7.2-r0')
+        'RUN apk add --no-cache --upgrade libexpat=2.10.0-r0 pcre2=10.49-r0 libx11=1.8.14-r0 tiff=4.7.2-r0')
 
 
 def prepare_demo(source):
