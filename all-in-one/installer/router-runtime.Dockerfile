@@ -1,9 +1,6 @@
-# Last 8.4 Router security patch; preserve its entrypoint and nonroot identity.
-FROM container-registry.oracle.com/mysql/community-router@sha256:d704471c2bb78fa833790dc197959c004d09af5aa18f5f153ff40e7268f54043 AS runtime-security
+# MySQL Router 26.10.0; preserve the vendor entrypoint and nonroot identity.
+FROM container-registry.oracle.com/mysql/community-router@sha256:3de30bd493403d2cc87f0a1070686911ded03e473161c4c235bddfe03dfc0d3b AS runtime-security
 USER 0:0
-# Update only the OS libraries identified by the refreshed vulnerability scan.
-# Do not upgrade mysql-router-community through a different product series.
-# The vendor image also enables internal staging MySQL repositories; OS updates
-# use Oracle Linux repositories only and must not contact those staging hosts.
-RUN microdnf clean all && microdnf --disablerepo='mysql*' update -y openssl-libs gnutls libevent pcre2 curl libcurl libxml2 glib2 krb5-libs libacl sqlite-libs libcap && microdnf clean all
+# Refresh Oracle Linux security packages without switching the pinned Router series.
+RUN microdnf clean all && microdnf --disablerepo='mysql*' update -y && microdnf clean all
 USER 999:999

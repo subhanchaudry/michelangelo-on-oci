@@ -2,6 +2,9 @@ resource "tls_private_key" "bootstrap" {
   algorithm = "RSA"
   rsa_bits  = 4096
 }
+resource "tls_private_key" "bootstrap_host" {
+  algorithm = "ED25519"
+}
 resource "oci_core_instance" "bootstrap" {
   compartment_id      = var.compartment_id
   availability_domain = local.availability_domain
@@ -23,13 +26,16 @@ resource "oci_core_instance" "bootstrap" {
   }
   metadata = {
     ssh_authorized_keys = join("\n", compact([for key in [tls_private_key.bootstrap.public_key_openssh, var.operator_ssh_public_key] : trimspace(key)]))
-    user_data = base64encode(<<-CLOUDINIT
- #cloud-config
- # Package installation runs after VCN DNS convergence via installer/bootstrap.sh.
- runcmd:
-   - [mkdir, -p, /opt/michelangelo]
- CLOUDINIT
-    )
+    # Establish server identity through the authenticated OCI creation request.
+    # Never derive this trust from an unauthenticated network key scan.
+    user_data = base64encode(join("\n", ["#cloud-config", yamlencode({
+      ssh_deletekeys = true
+      ssh_keys = {
+        ed25519_private = tls_private_key.bootstrap_host.private_key_openssh
+        ed25519_public  = tls_private_key.bootstrap_host.public_key_openssh
+      }
+      runcmd = [["mkdir", "-p", "/opt/michelangelo"]]
+    })]))
 
   }
   # Cloud-init is initial-boot configuration. Dependency repairs are maintained
@@ -60,6 +66,7 @@ data "oci_resourcemanager_private_endpoint_reachable_ip" "bootstrap" {
   private_ip          = oci_core_instance.bootstrap.private_ip
 }
 locals {
+  bootstrap_host_key = var.bootstrap_ssh_host_key != "" ? trimspace(var.bootstrap_ssh_host_key) : tls_private_key.bootstrap_host.public_key_openssh
   install_config = merge({
     cluster_id                  = oci_containerengine_cluster.platform.id
     kubernetes_version          = local.kubernetes_version
@@ -95,10 +102,11 @@ locals {
 }
 resource "null_resource" "install" {
   triggers = {
-    instance_id              = oci_core_instance.bootstrap.id
-    source_manifest_checksum = filesha256("${path.module}/SOURCE-MANIFEST.json")
-    installer_checksum       = local.installer_checksum
-    configuration_checksum   = sha256(jsonencode(local.install_config))
+    instance_id               = oci_core_instance.bootstrap.id
+    source_manifest_checksum  = filesha256("${path.module}/SOURCE-MANIFEST.json")
+    installer_checksum        = local.installer_checksum
+    configuration_checksum    = sha256(jsonencode(local.install_config))
+    bootstrap_host_key_sha256 = sha256(local.bootstrap_host_key)
 
   }
   depends_on = [oci_containerengine_node_pool.platform, oci_mysql_mysql_db_system.platform, oci_identity_policy.bootstrap, oci_identity_policy.automation, oci_identity_policy.cluster_load_balancer, oci_identity_policy.runtime_reader, terraform_data.public_signing_certificates]
@@ -107,6 +115,7 @@ resource "null_resource" "install" {
     host        = var.use_resource_manager_private_endpoint ? data.oci_resourcemanager_private_endpoint_reachable_ip.bootstrap[0].ip_address : oci_core_instance.bootstrap.public_ip
     user        = "ubuntu"
     private_key = tls_private_key.bootstrap.private_key_pem
+    host_key    = local.bootstrap_host_key
     timeout     = "5m"
     agent       = false
 

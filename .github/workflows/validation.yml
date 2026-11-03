@@ -1,4 +1,4 @@
-name: Candidate validation
+name: Release validation
 on:
   pull_request:
   push:
@@ -63,3 +63,23 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           GITLEAKS_VERSION: '8.30.1'
           GITLEAKS_ENABLE_COMMENTS: 'false'
+  packages:
+    needs: [portable, source, terraform, secrets]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Build review downloads
+        run: |
+          mkdir -p "$RUNNER_TEMP/release-downloads"
+          for profile in all-in-one terraform resource-manager; do
+            archive="$RUNNER_TEMP/release-downloads/michelangelo-$profile-0.12.0-oci.1.zip"
+            python3 -B all-in-one/scripts/package-stack.py --profile "$profile" --output "$archive"
+            python3 -B all-in-one/scripts/check-publication.py --archive "$archive"
+          done
+          git rev-parse HEAD > "$RUNNER_TEMP/release-downloads/SOURCE-REVISION.txt"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: michelangelo-0.12.0-oci.1-review-downloads
+          path: ${{ runner.temp }}/release-downloads/
+          if-no-files-found: error
+          retention-days: 30

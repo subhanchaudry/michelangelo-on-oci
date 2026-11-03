@@ -88,7 +88,7 @@ resource "oci_mysql_mysql_db_system" "this" {
   port_x                  = 33060
   freeform_tags           = local.common_tags
 
-  # Preserve the accepted pilot policy and make it reproducible at new sites.
+  # Configure backup retention consistently for each deployment.
   # Backup availability is not evidence of a successful restore rehearsal.
   backup_policy {
     is_enabled        = true

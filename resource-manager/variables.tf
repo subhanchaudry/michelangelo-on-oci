@@ -208,7 +208,7 @@ variable "admin_cidr" {
 }
 
 variable "release_repository_names" {
-  description = "Optional separate release repositories. The current pilot uses only the existing shared repository."
+  description = "Optional repositories for separately managed release images."
   type        = set(string)
   default     = []
 

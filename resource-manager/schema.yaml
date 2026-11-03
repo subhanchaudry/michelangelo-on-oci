@@ -2,10 +2,10 @@ title: Michelangelo OCI foundation
 description: New-site OCI infrastructure only. Application installation and production
   acceptance are separate.
 schemaVersion: 1.1.0
-version: 1.0.0
+version: 0.12.0-oci.1
 locale: en
 informationalText: Select Terraform 1.5.x. Create a Plan first; do not automatically
-  Apply. This package does not adopt an existing pilot or install Michelangelo.
+  Apply. This package does not adopt an existing deployment or install Michelangelo.
 variableGroups:
 - title: Destination
   variables:
@@ -260,8 +260,7 @@ variables:
   release_repository_names:
     type: array
     title: Release repository names
-    description: Optional separate release repositories. The current pilot uses only
-      the existing shared repository.
+    description: Optional repositories for separately managed release images.
     required: false
     items:
       type: string

@@ -75,6 +75,15 @@ variable "admin_cidr" {
     error_message = "Use the single authorized operator IPv4 address as /32."
   }
 }
+variable "bootstrap_ssh_host_key" {
+  type        = string
+  default     = ""
+  description = "Existing builder's SSH public host key, verified through authenticated OCI console access. Leave empty for a new builder with a generated pinned key."
+  validation {
+    condition     = var.bootstrap_ssh_host_key == "" || can(regex("^(ssh-ed25519|ssh-rsa|ecdsa-sha2-nistp(256|384|521)) [A-Za-z0-9+/]+={0,3}( [^\\r\\n]*)?$", trimspace(var.bootstrap_ssh_host_key)))
+    error_message = "Supply one OpenSSH public host key, or leave empty for a new builder."
+  }
+}
 variable "operator_ssh_public_key" {
   type    = string
   default = ""

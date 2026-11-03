@@ -1,8 +1,9 @@
 {
-  "release": "0.12.0-oci.1-rc.2",
+  "release": "0.12.0-oci.1",
   "upstream": "v0.12.0",
   "upstream_commit": "ed2a2b09ed9fab57e1479f45e84330a78f3ff8d3",
-  "status": "customer-source-candidate",
+  "status": "release-source",
   "site_acceptance": "requires-site-validation",
-  "production_ready": false
+  "production_ready": false,
+  "release_verification": "required"
 }

@@ -132,6 +132,7 @@
   "installer/transport/render.py",
   "installer/upgrade_control.py",
   "installer/workload_security.py",
+  "monitoring.tf",
   "mysql_tls.tf",
   "network.tf",
   "oke.tf",

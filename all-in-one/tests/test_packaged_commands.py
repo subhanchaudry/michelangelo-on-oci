@@ -59,6 +59,21 @@ class PackagedCommandsTests(unittest.TestCase):
             self.assertEqual(result.returncode, 1, result.stderr)
             self.assertFalse(json.loads(result.stdout)['cutover_allowed'])
             self.assertFalse(json.loads(result.stdout)['production_ready'])
+            public = ['--profile', 'public-release', '--source-revision', 'a'*40, '--package', str(archive)]
+            public_record = root/'public-acceptance.json'
+            result = run('site-acceptance.py', 'init', '--record', str(public_record), *public)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            result = run('site-acceptance.py', 'check', '--record', str(public_record), *public)
+            self.assertEqual(result.returncode, 1, result.stderr)
+            self.assertEqual(len(json.loads(result.stdout)['missing_checks']), 168)
+            self.assertEqual(len(json.loads(result.stdout)['excluded_checks']), 4)
+            public_gate = root/'public-gate.json'
+            result = run('release-gate.py', 'init', '--record', str(public_gate), '--acceptance', str(public_record), *public)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            result = run('release-gate.py', 'check', '--record', str(public_gate), '--acceptance', str(public_record), *public)
+            self.assertEqual(result.returncode, 1, result.stderr)
+            self.assertFalse(json.loads(result.stdout)['release_eligible'])
+            self.assertFalse(json.loads(result.stdout)['cutover_allowed'])
 
 
 if __name__ == '__main__':
