@@ -111,7 +111,7 @@ def install(config, images):
         namespace, demo = model['project'], model['demo']
         target_name = demo + '-cpu'
         create_once('modelfamilys', {'apiVersion': 'michelangelo.api/v2', 'kind': 'ModelFamily',
-            'metadata': {'name': demo, 'namespace': namespace}, 'spec': {'name': demo, 'description': 'OCI internal operator pilot model family'}})
+            'metadata': {'name': demo, 'namespace': namespace}, 'spec': {'name': demo, 'description': 'OCI model family'}})
         create_once('inferenceservers', {'apiVersion': 'michelangelo.api/v2', 'kind': 'InferenceServer',
             'metadata': {'name': target_name, 'namespace': namespace, 'labels': {'michelangelo/environment': 'nonprod'}},
             'spec': {'tenancyType': 'TENANCY_TYPE_DEDICATED', 'backendType': 'BACKEND_TYPE_TRITON', 'suspended': True,

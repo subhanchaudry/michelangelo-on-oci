@@ -26,11 +26,11 @@ def prepare(previous, built, triton):
             values[component]['command'] = ['/app']
     values.setdefault('inferenceServer',{}).setdefault('triton',{})['defaultImage'] = triton
     if not values.get('ui',{}).get('basicAuthSecret'):
-        raise ValueError('Private pilot login Secret must be preserved')
+        raise ValueError('Existing login Secret must be preserved')
     for component in ('apiserver','envoy','ui'):
         settings=values.get(component,{})
         if settings.get('service',{}).get('type','ClusterIP') != 'ClusterIP' or settings.get('ingress',{}).get('enabled',False):
-            raise ValueError('This pilot upgrade must remain private: '+component)
+            raise ValueError('Upgraded components must remain private: '+component)
     return values
 
 def main():
