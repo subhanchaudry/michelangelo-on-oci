@@ -7,6 +7,7 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
+import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.dont_write_bytecode = True
@@ -21,18 +22,24 @@ def main():
     parser.add_argument('--source', required=True, type=Path)
     args = parser.parse_args()
     chart = args.source.resolve() / 'helm/michelangelo'
-    subprocess.run(['helm', 'dependency', 'build', str(chart)], check=True)
     config = {'object_storage_namespace': 'example', 'region': 'us-chicago-1',
               'artifact_bucket': 'example-artifacts', 'registry': 'registry.example/release',
               'public_hostname': 'studio.example.com'}
     images = {name: {'pinned': 'registry.example/' + name + '@sha256:' + 'a' * 64}
               for name in ('apiserver', 'controllermgr', 'worker', 'ui', 'collector', 'triton')}
     with tempfile.TemporaryDirectory() as directory:
+        # Use an empty repository configuration so this check also works on fresh runners.
+        helm_env = {**os.environ, 'HELM_REPOSITORY_CONFIG': str(Path(directory) / 'repositories.yaml'),
+                    'HELM_REPOSITORY_CACHE': str(Path(directory) / 'repository-cache')}
+        for dependency in yaml.safe_load((chart / 'Chart.yaml').read_text()).get('dependencies', []):
+            subprocess.run(['helm', 'repo', 'add', dependency['name'], dependency['repository']],
+                           env=helm_env, check=True)
+        subprocess.run(['helm', 'dependency', 'build', str(chart)], env=helm_env, check=True)
         values = Path(directory) / 'values.json'
         values.write_text(json.dumps(install.values(config, 'mysql.example.internal', images)))
-        subprocess.run(['helm', 'lint', str(chart), '-f', str(values)], check=True)
+        subprocess.run(['helm', 'lint', str(chart), '-f', str(values)], env=helm_env, check=True)
         rendered = subprocess.check_output(['helm', 'template', 'michelangelo', str(chart),
-                                           '-n', 'ma-system', '-f', str(values)], text=True)
+                                           '-n', 'ma-system', '-f', str(values)], env=helm_env, text=True)
     env = {**os.environ, 'MYSQL_ROUTER_IMAGE': install.ROUTER_IMAGE,
            'MYSQL_ROUTER_HOST': 'mysql.example.internal',
            'MYSQL_ROUTER_CA_SECRET': 'database-ca', 'MYSQL_ROUTER_AUTH_SECRET': 'router-auth'}
