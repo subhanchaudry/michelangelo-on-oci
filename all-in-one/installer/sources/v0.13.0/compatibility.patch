@@ -2558,6 +2558,22 @@ index cb09824..554115a 100644
    },
    "resolutionsComments": {
      "tslib": "Required to fix 'Cannot destructure property __extends of import_tslib.default' error that occurs with BaseUI 15 and its dependencies",
+diff --git a/javascript/packages/core/components/__tests__/help-tooltip.test.tsx b/javascript/packages/core/components/__tests__/help-tooltip.test.tsx
+index 24ab66a..9297b92 100644
+--- a/javascript/packages/core/components/__tests__/help-tooltip.test.tsx
++++ b/javascript/packages/core/components/__tests__/help-tooltip.test.tsx
+@@ -58,7 +58,10 @@ describe('HelpTooltip', () => {
+ 
+     await user.hover(screen.getByText('circleI'));
+     const tooltipContent = await screen.findByText('Bold');
+-    expect(tooltipContent).toMatchInlineSnapshot(`
++    // The wrapper adds a unique test-only class prefix to isolate its styles.
++    const snapshot = tooltipContent.cloneNode(true) as HTMLElement;
++    snapshot.className = snapshot.className.replace(/\btest-\d+-/g, '');
++    expect(snapshot).toMatchInlineSnapshot(`
+       <strong
+         class="ba be bc bd"
+       >
 diff --git a/javascript/packages/core/components/cell/renderers/state/__tests__/state-cell.tests.tsx b/javascript/packages/core/components/cell/renderers/state/__tests__/state-cell.tests.tsx
 index bcf587e..0bff0d7 100644
 --- a/javascript/packages/core/components/cell/renderers/state/__tests__/state-cell.tests.tsx
@@ -3326,6 +3342,29 @@ index 0a0cedf..35f22a0 100644
    },
  };
  
+diff --git a/javascript/packages/core/test/wrappers/get-base-provider-wrapper.tsx b/javascript/packages/core/test/wrappers/get-base-provider-wrapper.tsx
+index 6ef1ae4..37a0030 100644
+--- a/javascript/packages/core/test/wrappers/get-base-provider-wrapper.tsx
++++ b/javascript/packages/core/test/wrappers/get-base-provider-wrapper.tsx
+@@ -7,12 +7,17 @@ import { ThemeProvider } from '#core/themes/theme-provider';
+ 
+ import type { WrapperComponentProps } from './types';
+ 
++let nextStyletronId = 0;
++
+ // This is required for some BaseWeb components. If missing, BaseWeb will console.warn
+ // something like "`LayersManager` was not found."
+ export function getBaseProviderWrapper() {
++  // Style tags survive Testing Library cleanup. Unique prefixes prevent a prior
++  // wrapper's rules from hiding controls, and this engine stays stable on rerender.
++  const engine = new Styletron({ prefix: `test-${nextStyletronId++}-` });
+   return function BaseProviderWrapper({ children }: WrapperComponentProps) {
+     return (
+-      <StyletronProvider value={new Styletron()}>
++      <StyletronProvider value={engine}>
+         <ThemeProvider>{children}</ThemeProvider>
+       </StyletronProvider>
+     );
 diff --git a/javascript/packages/rpc/handlers.ts b/javascript/packages/rpc/handlers.ts
 index b890d34..7afc9db 100644
 --- a/javascript/packages/rpc/handlers.ts

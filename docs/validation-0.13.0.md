@@ -16,6 +16,8 @@
 | Linux application build | API server, worker and controller compiled for linux/amd64; all three service images and the UI image built locally |
 | Application image scans | Zero High and Critical findings in each of those four rebuilt images using November 16, 2026 vulnerability data |
 
+The Studio test wrapper now keeps a stable styling engine and uses unique class prefixes, preventing leaked style rules from hiding controls across tests. A Linux stress reproduction failed before this correction and passed all 50 repeated deployment-update submissions afterward. The production UI behavior was unchanged by this test-only correction.
+
 Regression coverage includes resuming a suspended serving deployment with an unchanged template hash; replicas return to one and the private CPU deployment strategy remains Recreate.
 
 The Go scope includes `auth/...`, API handler and header utilities, Kubernetes job mapping, `components/deployment/...`, `components/inferenceserver/...`, TriggerRun, worker configuration and deployment activities. The activity checks exercise both Cadence and Temporal serialization. The broader upstream worker-activity suite depends on Bazel-generated mocks and was not completed with plain `go test`.
