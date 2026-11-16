@@ -233,6 +233,7 @@ PUBLIC_HOST {
         "replicas": 1, "strategy": {"type": "Recreate"}, "selector": {"matchLabels": labels},
         "template": {"metadata": {"labels": labels, "annotations": {"checksum/config": digest, "checksum/credentials": hashlib.sha256(json.dumps(secret["stringData"], sort_keys=True).encode()).hexdigest()}}, "spec": {
             "automountServiceAccountToken": False,
+            "imagePullSecrets": [{"name": "michelangelo-registry"}],
             "securityContext": {"runAsNonRoot": True, "runAsUser": 1000, "runAsGroup": 1000, "fsGroup": 1000, "seccompProfile": {"type": "RuntimeDefault"}},
             "nodeSelector": config.get("edge_node_selector", {"workload.oci.oracle.com/pool": "system"}), "containers": containers,
             # The official image binary has a privileged-port file capability.
