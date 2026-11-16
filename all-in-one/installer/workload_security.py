@@ -1,5 +1,6 @@
 """Native, fail-closed validation for the default-namespace runtime profile."""
 import json
+import re
 import copy
 from pathlib import Path
 import subprocess
@@ -56,7 +57,9 @@ def runtime_expression(image, final=False):
  && (!has(p.volumes) || p.volumes.all(v, has(v.emptyDir){projected}))""".replace('\n', ' ')
 
 
-def renewal_expression(final=False):
+def renewal_expression(image, final=False):
+    if not isinstance(image, str) or not re.fullmatch(r'[^\s@]+@sha256:[0-9a-f]{64}', image):
+        raise ValueError('Renewal admission image must be immutable')
     # Derive exact allowed programs from the reviewed template, never labels or names.
     import yaml
     template = (Path(__file__).parent/'release/platform/releases/v0.11.0/token-renewal.example.yaml').read_text()
@@ -71,6 +74,7 @@ def renewal_expression(final=False):
         cron = list(yaml.safe_load_all(text))[-1]
         pod = cron['spec']['jobTemplate']['spec']['template']['spec']
         c = pod['containers'][0]
+        c['image'] = image
         # Explicit fields tolerate only Kubernetes defaulting, never added env/mounts.
         checks = [f"p.serviceAccountName == {json.dumps(account+'-renewer')}",
                   "size(p.containers) == 1 && p.containers[0].name == 'renew'", f"p.containers[0].image == {json.dumps(c['image'])}",
@@ -95,7 +99,7 @@ def renewal_expression(final=False):
                   "p.restartPolicy == 'Never' && size(p.nodeSelector) == 1 && p.nodeSelector['workload.oci.oracle.com/pool'] == 'system'",
                   "(!has(p.hostNetwork) || !p.hostNetwork) && (!has(p.hostPID) || !p.hostPID) && (!has(p.hostIPC) || !p.hostIPC)",
                   "(!has(p.initContainers) || size(p.initContainers) == 0) && (!has(p.ephemeralContainers) || size(p.ephemeralContainers) == 0)",
-                  "(!has(p.imagePullSecrets) || size(p.imagePullSecrets) == 0)"]
+                  "has(p.imagePullSecrets) && size(p.imagePullSecrets) == 1 && p.imagePullSecrets[0].name == 'ma-lifecycle-runtime-registry'"]
         if final:
             # All mounts/volumes must be the standard API projection. The exact
             # renewer SA cannot be selected by the compute manager's remaining APIs.
@@ -108,11 +112,11 @@ def renewal_expression(final=False):
     return '('+' || '.join(alternatives)+')'
 
 
-def documents(image):
+def documents(image, renewal_image):
     runtime = runtime_expression(image)
     final = runtime_expression(image, final=True)
-    renewal = renewal_expression()
-    renewal_pod = renewal_expression(final=True)
+    renewal = renewal_expression(renewal_image)
+    renewal_pod = renewal_expression(renewal_image, final=True)
     # Lists bind p once, without relying on optional CEL language extensions.
     check = lambda path, rule: f'[{path}].all(p, {rule})'
     cluster = lambda path: f"has({path}.headGroupSpec) && (!has({path}.headGroupSpec.serviceType) || {path}.headGroupSpec.serviceType == '' || {path}.headGroupSpec.serviceType == 'ClusterIP') && (!has({path}.headGroupSpec.enableIngress) || !{path}.headGroupSpec.enableIngress) && !has({path}.headGroupSpec.headService) && {check(path+'.headGroupSpec.template.spec',runtime)} && (!has({path}.workerGroupSpecs) || {path}.workerGroupSpecs.all(w, {check('w.template.spec',runtime)}))"
@@ -151,14 +155,14 @@ def harden_rbac(core):
 
 def install(core, images):
     harden_rbac(core)
-    core.apply(documents(images['examples']['pinned']))
+    core.apply(documents(images['examples']['pinned'], images['identity']['pinned']))
     verify_enforcement(core, images['examples']['pinned'])
     require_clean_runtime(core)
     core.run(['kubectl','delete','clusterpolicy','michelangelo-lifecycle-runtime-access','--ignore-not-found=true','--wait=true','--timeout=60s'])
     # Rollback retains these policies and RBAC; an old application image must
     # stay paused rather than reintroducing the old authorization boundary.
     core.save(core.WORK/'runtime-security.json', {'profile':2,'image':images['examples']['pinned'],
-              'policies':[x['metadata']['name'] for x in documents(images['examples']['pinned']) if x['kind']=='ValidatingAdmissionPolicy']})
+              'policies':[x['metadata']['name'] for x in documents(images['examples']['pinned'], images['identity']['pinned']) if x['kind']=='ValidatingAdmissionPolicy']})
 
 
 def verify_enforcement(core, image):

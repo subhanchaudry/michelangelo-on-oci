@@ -95,23 +95,6 @@ def install(config, images):
     kubeconfig = yaml.safe_load((core.WORK / 'kubeconfig').read_text())['clusters'][0]['cluster']
     ca = base64.b64decode(kubeconfig['certificate-authority-data']).decode()
     server = urllib.parse.urlsplit(kubeconfig['server'])
-    runtime_tokens = {}
-    for name, manager in [('oci-compute', account), ('oci-serving', 'michelangelo-serving-manager')]:
-        runtime_tokens[manager] = token_registration(manager, name, ca, images['identity']['pinned'])
-        # Serving targets carry their own explicit connection and credentials.
-        # Register only compute with the generic Ray/Spark scheduler, whose
-        # default selection otherwise includes the restricted serving account.
-        if name != 'oci-compute':
-            continue
-        resource = {'apiVersion': 'michelangelo.api/v2', 'kind': 'Cluster', 'metadata': metadata(name, core.NS),
-                    'spec': {'dc': 'DC_TYPE_CLOUD_OCI', 'sla': 'SLA_TYPE_EPHEMERAL', 'region': config['region'],
-                             'kubernetes': {'rest': {'host': server.scheme + '://' + server.hostname, 'port': str(server.port or 443),
-                                           'tokenTag': 'cluster-' + name + '-client-token', 'caDataTag': 'cluster-' + name + '-ca-data'}, 'skus': []}}}
-        core.apply(resource)
-    # Remove the exact obsolete installer-owned scheduler registration on
-    # upgrade. Keep its serving connection Secrets and token renewer intact.
-    core.run(['kubectl', '-n', core.NS, 'delete', 'clusters.michelangelo.api',
-              'oci-serving', '--ignore-not-found=true', '--wait=true', '--timeout=60s'])
     # Upstream secret lookups intentionally use default; the chart service
     # account gets read access to those four registration names specifically.
     core.apply([{'apiVersion': 'rbac.authorization.k8s.io/v1', 'kind': 'Role', 'metadata': metadata('ma-runtime-client-secrets'),
@@ -137,7 +120,25 @@ def install(config, images):
             core.apply({'apiVersion': 'v1', 'kind': 'ConfigMap', 'metadata': metadata(name, namespace), 'data': storage_config})
     core.apply({'apiVersion':'v1','kind':'ServiceAccount','metadata':metadata('michelangelo-lifecycle-runner'),
                 'automountServiceAccountToken':True,'imagePullSecrets':[{'name':'ma-lifecycle-runtime-registry'}]})
+    # Install the exact new image policy before changing renewal CronJobs.
     workload_security.install(core, images)
+    runtime_tokens = {}
+    for name, manager in [('oci-compute', account), ('oci-serving', 'michelangelo-serving-manager')]:
+        runtime_tokens[manager] = token_registration(manager, name, ca, images['identity']['pinned'])
+        # Serving targets carry their own explicit connection and credentials.
+        # Register only compute with the generic Ray/Spark scheduler, whose
+        # default selection otherwise includes the restricted serving account.
+        if name != 'oci-compute':
+            continue
+        resource = {'apiVersion': 'michelangelo.api/v2', 'kind': 'Cluster', 'metadata': metadata(name, core.NS),
+                    'spec': {'dc': 'DC_TYPE_CLOUD_OCI', 'sla': 'SLA_TYPE_EPHEMERAL', 'region': config['region'],
+                             'kubernetes': {'rest': {'host': server.scheme + '://' + server.hostname, 'port': str(server.port or 443),
+                                           'tokenTag': 'cluster-' + name + '-client-token', 'caDataTag': 'cluster-' + name + '-ca-data'}, 'skus': []}}}
+        core.apply(resource)
+    # Remove the exact obsolete installer-owned scheduler registration on
+    # upgrade. Keep its serving connection Secrets and token renewer intact.
+    core.run(['kubectl', '-n', core.NS, 'delete', 'clusters.michelangelo.api',
+              'oci-serving', '--ignore-not-found=true', '--wait=true', '--timeout=60s'])
     workload_security.verify_manager_identity(core, kubeconfig['server'], ca, runtime_tokens[account], images['examples']['pinned'])
     logs = (release / 'log-service.example.json').read_text().replace('REPLACE_LOG_READER_IMAGE_DIGEST_URI', images['delivery']['pinned'])
     core.apply(json.loads(logs)['items'])

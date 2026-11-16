@@ -12,6 +12,7 @@ ROOT=Path(__file__).resolve().parents[1]
 spec=importlib.util.spec_from_file_location('workload_security',ROOT/'installer/workload_security.py')
 security=importlib.util.module_from_spec(spec);spec.loader.exec_module(security)
 IMAGE='registry.example.com/examples@sha256:'+'a'*64
+RENEWAL_IMAGE='registry.example.com/identity@sha256:'+'b'*64
 
 
 def admission_cases():
@@ -21,7 +22,7 @@ def admission_cases():
          'volumes':[{'name':'ray','emptyDir':{}}],'imagePullSecrets':[{'name':'ma-lifecycle-runtime-registry'}]}
     cluster={'headGroupSpec':{'template':{'spec':copy.deepcopy(pod)}},
              'workerGroupSpecs':[{'groupName':n,'template':{'spec':copy.deepcopy(pod)}} for n in ('first','second')]}
-    expressions={x['metadata']['name'].removeprefix(security.POLICY+'-'):x['spec']['validations'][0]['expression'] for x in security.documents(IMAGE) if x['kind']=='ValidatingAdmissionPolicy'}
+    expressions={x['metadata']['name'].removeprefix(security.POLICY+'-'):x['spec']['validations'][0]['expression'] for x in security.documents(IMAGE, RENEWAL_IMAGE) if x['kind']=='ValidatingAdmissionPolicy'}
     cases=[]
     def add(name,resource,value,allowed):cases.append({'Name':name,'Expression':expressions[resource],'Object':{'spec':value},'Allowed':allowed})
     add('valid cluster','rayclusters',copy.deepcopy(cluster),True)
@@ -67,6 +68,14 @@ def admission_cases():
                         'REPLACE_TOKEN_SECRET':'cluster-oci-'+short+'-client-token','REPLACE_RENEWAL_JOB_NAME':account+'-token-renew',
                         'REPLACE_SYSTEM_NODE_LABEL':'workload.oci.oracle.com/pool','REPLACE_SYSTEM_NODE_VALUE':'system'}.items():rendered=rendered.replace(old,new)
         cron=list(yaml.safe_load_all(rendered))[-1]
+        renewal_pod=cron['spec']['jobTemplate']['spec']['template']['spec']
+        legacy_image=renewal_pod['containers'][0]['image']
+        renewal_pod['containers'][0]['image']=RENEWAL_IMAGE
+        renewal_pod['imagePullSecrets']=[{'name':'ma-lifecycle-runtime-registry'}]
+        bad=copy.deepcopy(cron['spec']);bad['jobTemplate']['spec']['template']['spec']['containers'][0]['image']=legacy_image
+        add(short+' obsolete renewal image','cronjobs',bad,False)
+        bad=copy.deepcopy(cron['spec']);bad['jobTemplate']['spec']['template']['spec']['imagePullSecrets']=[{'name':'unapproved-registry'}]
+        add(short+' unapproved renewal registry','cronjobs',bad,False)
         add(short+' renewal CronJob','cronjobs',cron['spec'],True)
         add(short+' renewal Job','jobs',cron['spec']['jobTemplate']['spec'],True)
         bad=copy.deepcopy(cron['spec']);bad['jobTemplate']['spec']['template']['spec']['containers'][0]['args']=['steal token']
@@ -157,7 +166,7 @@ class WorkloadSecurityTests(unittest.TestCase):
             self.assertNotEqual(security.execution_profile(template),security.execution_profile(modified))
 
     def test_all_policies_fail_closed_and_have_no_caller_exemption(self):
-        for policy in security.documents(IMAGE):
+        for policy in security.documents(IMAGE, RENEWAL_IMAGE):
             if policy['kind']=='ValidatingAdmissionPolicy':
                 self.assertEqual(policy['spec']['failurePolicy'],'Fail')
                 self.assertEqual(policy['spec']['validations'][0]['reason'],'Forbidden')
