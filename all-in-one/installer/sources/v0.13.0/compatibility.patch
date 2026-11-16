@@ -2652,7 +2652,7 @@ index abe9bfe..11bb44b 100644
     * @description A map of state values to their display text
     * @example
 diff --git a/javascript/packages/core/config/entities/deployment/__tests__/deployment-page.test.tsx b/javascript/packages/core/config/entities/deployment/__tests__/deployment-page.test.tsx
-index 821b43b..491d096 100644
+index 821b43b..4eb0219 100644
 --- a/javascript/packages/core/config/entities/deployment/__tests__/deployment-page.test.tsx
 +++ b/javascript/packages/core/config/entities/deployment/__tests__/deployment-page.test.tsx
 @@ -65,7 +65,7 @@ describe('Deployment list page', () => {
@@ -2679,6 +2679,16 @@ index 821b43b..491d096 100644
      it('renders the configuration details', async () => {
        render(
          <EntityDetailRoute phases={{ deploy: DEPLOY_PHASE }} />,
+@@ -995,7 +997,8 @@ describe('Deployment update action', () => {
+     const dialog = await openUpdateDialog(user);
+ 
+     // The prefilled Model select's accessible name is its selected value.
+-    await user.click(within(dialog).getByRole('combobox', { name: /Selected bert-cola-37/ }));
++    // The selected value appears after the asynchronous model lookup completes.
++    await user.click(await within(dialog).findByRole('combobox', { name: /Selected bert-cola-37/ }));
+     await user.click(await screen.findByRole('option', { name: 'bert-cola-38' }));
+     await user.click(within(dialog).getByRole('button', { name: 'Update' }));
+ 
 diff --git a/javascript/packages/core/config/entities/deployment/deployment-info-page.tsx b/javascript/packages/core/config/entities/deployment/deployment-info-page.tsx
 index 1aadb7d..bdbcac8 100644
 --- a/javascript/packages/core/config/entities/deployment/deployment-info-page.tsx
