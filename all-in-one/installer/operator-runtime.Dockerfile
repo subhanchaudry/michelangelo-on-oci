@@ -21,7 +21,8 @@ USER 65532:65532
 ENTRYPOINT ["/app"]
 
 FROM runtime AS kuberay
-COPY --from=kuberay-build /out/manager /app
+COPY --from=kuberay-build /out/manager /manager
+ENTRYPOINT ["/manager"]
 COPY --from=kuberay-build /src/kuberay/LICENSE /licenses/kuberay-LICENSE
 
 FROM runtime AS gateway

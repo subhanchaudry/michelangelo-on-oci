@@ -67,6 +67,11 @@ def build(core, config, tag, manifest_sha256):
                       '--entrypoint', 'envoy-gateway', record['pinned'],
                       'certgen', '--help'], capture=True)
             record['chart_certgen_command_verified'] = True
+        if name == 'kuberay':
+            core.run(['docker', 'run', '--rm', '--platform', 'linux/amd64',
+                      '--entrypoint', '/manager', record['pinned'], '--help'],
+                     capture=True)
+            record['chart_manager_command_verified'] = True
         record.update(installer_source_manifest_sha256=manifest_sha256,
                       platform='linux/amd64', release=tag, security_gate='requires-runtime-scan')
         images[name] = record
