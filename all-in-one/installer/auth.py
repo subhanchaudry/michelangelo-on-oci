@@ -242,7 +242,9 @@ PUBLIC_HOST {
             "initContainers": [{"name": "caddy-unprivileged-binary", "image": config.get("caddy_image", DEFAULT_CADDY),
                 "command": ["/bin/sh", "-c", "cp /usr/bin/caddy /tools/caddy && chmod 0755 /tools/caddy"],
                 "securityContext": security, "volumeMounts": [{"name": "caddy-bin", "mountPath": "/tools"}],
-                "resources": {"requests": {"cpu": "10m", "memory": "16Mi"}, "limits": {"memory": "64Mi"}}}],
+                # The rebuilt binary copy exceeded 64Mi on native Kubernetes;
+                # 256Mi passed the same restricted, disk-backed copy test.
+                "resources": {"requests": {"cpu": "10m", "memory": "64Mi"}, "limits": {"memory": "256Mi"}}}],
             "volumes": [{"name": "config", "configMap": {"name": NAME}}, {"name": "tls", "persistentVolumeClaim": {"claimName": NAME + "-tls"}}, {"name": "caddy-config", "emptyDir": {}}, {"name": "caddy-bin", "emptyDir": {}}]}}})
     annotations = {
         "oci.oraclecloud.com/load-balancer-type": "lb",
