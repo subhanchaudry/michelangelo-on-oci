@@ -103,6 +103,8 @@ class DependencyOverlayTests(unittest.TestCase):
             self.assertEqual(first, dockerfile.read_bytes())
             serving = dockerfile.read_text().split('FROM ${TRITON_BASE} AS triton\n')[1].split('FROM ${PYTHON_BASE} AS delivery')[0]
             self.assertIn('libssl3t64=3.0.13-0ubuntu3.16', serving)
+            self.assertIn('apt=2.8.4ubuntu0.1 apt-utils=2.8.4ubuntu0.1 libapt-pkg6.0t64=2.8.4ubuntu0.1', serving)
+            self.assertNotIn('apt-get upgrade', serving)
             self.assertIn('/usr/local/cuda-13.4/NsightSystems-cli-2026.5.1', serving)
             self.assertIn('python3 -m pip install --no-cache-dir --no-deps --require-hashes --upgrade -r /opt/runtime-patches/certifi-requirements.lock', serving)
             self.assertTrue(serving.rstrip().endswith('USER 65532:65532'))
