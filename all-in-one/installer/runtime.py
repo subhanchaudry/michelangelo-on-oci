@@ -37,7 +37,9 @@ def rbac(name, namespace, rules):
              'roleRef': {'apiGroup': 'rbac.authorization.k8s.io', 'kind': 'Role', 'name': name}}]
 
 
-def token_registration(account, cluster_name, cluster_data):
+def token_registration(account, cluster_name, cluster_data, image):
+    if not isinstance(image, str) or not re.fullmatch(r'[^\s@]+@sha256:[0-9a-f]{64}', image):
+        raise RuntimeError('Token-renewer image must be immutable')
     secret_name = 'cluster-' + cluster_name + '-client-token'
     token = core.run(['kubectl', '-n', 'default', 'create', 'token', account, '--duration=24h'], capture=True).strip()
     core.secret(secret_name, {'token': token}, 'default')
@@ -49,9 +51,18 @@ def token_registration(account, cluster_name, cluster_data):
                     'REPLACE_SYSTEM_NODE_VALUE': 'system'}
     for old, new in replacements.items():
         template = template.replace(old, new)
+    original_image = 'docker.io/library/python@sha256:2fe5997d249a808b8eeea52c58a1dbffbba28754dc11699ef5c029f2d818ce79'
+    if template.count(original_image) != 1:
+        raise RuntimeError('Reviewed token-renewer image is missing or mutable')
+    template = template.replace(original_image, image)
     if re.search(r'\bREPLACE_[A-Z][A-Z0-9_]*\b', template):
         raise RuntimeError('Runtime renewal template is incomplete')
-    core.apply(list(yaml.safe_load_all(template)))
+    documents = list(yaml.safe_load_all(template))
+    for document in documents:
+        if document.get('kind') == 'CronJob':
+            document['spec']['jobTemplate']['spec']['template']['spec']['imagePullSecrets'] = [
+                {'name': 'ma-lifecycle-runtime-registry'}]
+    core.apply(documents)
     return token
 
 
@@ -86,7 +97,7 @@ def install(config, images):
     server = urllib.parse.urlsplit(kubeconfig['server'])
     runtime_tokens = {}
     for name, manager in [('oci-compute', account), ('oci-serving', 'michelangelo-serving-manager')]:
-        runtime_tokens[manager] = token_registration(manager, name, ca)
+        runtime_tokens[manager] = token_registration(manager, name, ca, images['identity']['pinned'])
         # Serving targets carry their own explicit connection and credentials.
         # Register only compute with the generic Ray/Spark scheduler, whose
         # default selection otherwise includes the restricted serving account.

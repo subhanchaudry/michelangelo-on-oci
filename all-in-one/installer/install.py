@@ -412,7 +412,7 @@ def build(config, source, initial_values):
     for target in ('delivery', 'triton'):
         image = config['registry'] + ':' + target + '-' + tag
         metadata = source / ('release-build/' + target + '-image.json')
-        run(['docker', 'buildx', 'build', '--platform', 'linux/amd64', '--push', '--target', target,
+        run(['docker', 'buildx', 'build', '--platform', 'linux/amd64', '--push', '--target', target, '--no-cache-filter', target,
              '-f', 'docker/support-runtime.Dockerfile', '--metadata-file', metadata, '-t', image, '.'], cwd=source)
         digest = json.loads(metadata.read_text())['containerimage.digest']
         images[target] = {'image': image, 'digest': digest, 'pinned': config['registry'] + '@' + digest}
@@ -436,7 +436,7 @@ def build(config, source, initial_values):
     shutil.copy2(ROOT / 'cpu-runtime.Dockerfile', source / 'docker/oci-cpu-runtime.Dockerfile')
     image = config['registry'] + ':examples-cpu-' + tag
     metadata = source / 'release-build/examples-image.json'
-    run(['docker', 'buildx', 'build', '--platform', 'linux/amd64', '--push', '-f', 'docker/oci-cpu-runtime.Dockerfile',
+    run(['docker', 'buildx', 'build', '--platform', 'linux/amd64', '--push', '--no-cache-filter', 'runtime-security', '-f', 'docker/oci-cpu-runtime.Dockerfile',
          '--metadata-file', metadata, '-t', image, '.'], cwd=source)
     digest = json.loads(metadata.read_text())['containerimage.digest']
     images['examples'] = {'image': image, 'digest': digest, 'pinned': config['registry'] + '@' + digest,
@@ -444,7 +444,7 @@ def build(config, source, initial_values):
     qualify_ray_runtime(images['examples']['pinned'])
     image = config['registry'] + ':identity-' + tag
     metadata = source / 'release-build/identity-image.json'
-    run(['docker', 'buildx', 'build', '--platform', 'linux/amd64', '--push',
+    run(['docker', 'buildx', 'build', '--platform', 'linux/amd64', '--push', '--no-cache-filter', 'runtime-security',
          '--metadata-file', metadata, '-t', image, str(ROOT / 'identity-service')])
     digest = json.loads(metadata.read_text())['containerimage.digest']
     images['identity'] = {'image': image, 'digest': digest, 'pinned': config['registry'] + '@' + digest}

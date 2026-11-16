@@ -8,7 +8,7 @@ RUN python3 -m pip install --no-cache-dir --require-hashes --no-deps -r /builder
 COPY python /sdk
 RUN python3 -m pip wheel --no-deps --no-build-isolation --wheel-dir /wheels /sdk
 
-FROM ${PYTHON_BASE}
+FROM ${PYTHON_BASE} AS runtime-security
 ENV PIP_DISABLE_PIP_VERSION_CHECK=1
 COPY docker/cpu-requirements.lock /requirements.lock
 RUN python3 -m pip install --no-cache-dir --require-hashes --no-deps -r /requirements.lock
@@ -21,7 +21,7 @@ RUN python3 -m pip install --no-cache-dir --no-deps '/wheels/'*.whl && \
     python3 -m pip freeze > /opt/michelangelo-runtime.lock && \
     rm -rf /wheels
 # KubeRay supplies wget health probes to every Ray container.
-RUN apt-get update && apt-get install -y --no-install-recommends wget && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends wget && rm -rf /var/lib/apt/lists/*
 COPY demo-source/ /app/
 ENV PYTHONPATH=/app:/app/oci_lifecycle OMP_NUM_THREADS=2 AWS_EC2_METADATA_DISABLED=true
 WORKDIR /app
