@@ -32,7 +32,7 @@
   "platform/releases/v0.11.0/support-runtime.Dockerfile": "10360e1c0bdbcbc6a1966426d5821f77eae3aafe0b01ee99ca5d87b6e70e505d",
   "platform/releases/v0.11.0/token-renewal.example.yaml": "c7d151e20dd966a93431cf125596b07f744b6a78f80c1c67cd59316f3ebcdce4",
   "platform/serving/lifecycle/catalog.json": "78724a273920a2c06c36e7b2d01040d203fca0e6d3c4344c5b6b9eab7002920a",
-  "platform/serving/lifecycle/delivery.py": "ad3bf602cb156c233dc3392a45d06d34b8d7560bd9000076e3e5a5083eb90cb6",
+  "platform/serving/lifecycle/delivery.py": "4a1376c569d32543c01f1201e195e2d61ceaab799e373a3dc0b5a2e4adb3f88d",
   "platform/serving/lifecycle/demo_datasets.py": "7ce60498fc45d71da3d172521b344208c9d5f5877cfd654ece545af6a9214b51",
   "platform/serving/lifecycle/log_server.py": "372c008e4b89dc5a0e9b6217f3ba97d8434eb05753bd7249adde8119bc34edb7",
   "platform/serving/lifecycle/model_package.py": "d2c1716722351989cfb5cf224fc8722bd30f455fc17bdc33d6425d236f82943e",

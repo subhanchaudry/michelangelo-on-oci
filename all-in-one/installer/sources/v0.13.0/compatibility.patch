@@ -5701,3 +5701,165 @@ index 0000000..f53c70a
 +
 +if __name__ == "__main__":
 +    unittest.main()
+diff --git a/go/components/deployment/plugins/common/model.go b/go/components/deployment/plugins/common/model.go
+index 915ff85..3fcf667 100644
+--- a/go/components/deployment/plugins/common/model.go
++++ b/go/components/deployment/plugins/common/model.go
+@@ -2,6 +2,7 @@ package common
+ 
+ import (
+ 	"context"
++	"encoding/hex"
+ 	"fmt"
+ 	"strings"
+ 
+@@ -132,3 +133,18 @@ func ResolveDeploymentModelStoragePath(ctx context.Context, apiHandler goapi.Han
+ 	}
+ 	return ResolveModelStoragePath(model)
+ }
++
++// ResolveDeploymentPackageSHA256 preserves the immutable package binding used by
++// OCI model delivery across canary, staged, and rollback configuration writes.
++func ResolveDeploymentPackageSHA256(ctx context.Context, apiHandler goapi.Handler, deployment *v2pb.Deployment) (string, error) {
++	model, err := FetchModel(ctx, apiHandler, deployment)
++	if err != nil {
++		return "", err
++	}
++	checksum := model.Annotations["michelangelo.ai/package-sha256"]
++	decoded, decodeErr := hex.DecodeString(checksum)
++	if decodeErr != nil || len(decoded) != 32 || checksum != strings.ToLower(checksum) {
++		return "", &ModelResolutionError{Reason: "MissingPackageChecksum", Message: "registered revision requires a lowercase SHA-256 package checksum"}
++	}
++	return checksum, nil
++}
+diff --git a/go/components/deployment/plugins/oss/rollback/rollback.go b/go/components/deployment/plugins/oss/rollback/rollback.go
+index f0c2eac..539decb 100644
+--- a/go/components/deployment/plugins/oss/rollback/rollback.go
++++ b/go/components/deployment/plugins/oss/rollback/rollback.go
+@@ -248,7 +248,22 @@ func (a *ClusterRollbackActor) restorePrevious(
+ 		}
+ 		entry = modelconfig.ModelConfigEntry{Name: current, StoragePath: storagePath, DeploymentName: deployment.GetName()}
+ 	}
+-	if !found || entry.CurrentPhase() != modelconfig.ModelPhaseServing || entry.CanaryPod != "" {
++	checksumChanged := false
++	if !found || entry.SHA256 == "" {
++		previous := deployment.DeepCopy()
++		previous.Spec.DesiredRevision = deployment.Status.GetCurrentRevision()
++		checksum, err := plugincommon.ResolveDeploymentPackageSHA256(ctx, a.apiHandler, previous)
++		if err != nil {
++			var resolutionErr *plugincommon.ModelResolutionError
++			if errors.As(err, &resolutionErr) {
++				return conditionsutil.GenerateFalseCondition(condition, resolutionErr.Reason, resolutionErr.Message)
++			}
++			return retry("ModelResolutionFailed", err.Error())
++		}
++		entry.SHA256 = checksum
++		checksumChanged = true
++	}
++	if !found || checksumChanged || entry.CurrentPhase() != modelconfig.ModelPhaseServing || entry.CanaryPod != "" {
+ 		entry.Phase = modelconfig.ModelPhaseServing
+ 		entry.CanaryPod = ""
+ 		a.logger.Info("Restoring previous model in model config",
+diff --git a/go/components/deployment/plugins/oss/rollback/rollback_test.go b/go/components/deployment/plugins/oss/rollback/rollback_test.go
+index 30a45ed..af7231e 100644
+--- a/go/components/deployment/plugins/oss/rollback/rollback_test.go
++++ b/go/components/deployment/plugins/oss/rollback/rollback_test.go
+@@ -94,7 +94,7 @@ func newControlPlaneClient(t *testing.T, objects ...client.Object) goapi.Handler
+ 
+ func previousModel() *v2pb.Model {
+ 	return &v2pb.Model{
+-		ObjectMeta: metav1.ObjectMeta{Name: testPrevious, Namespace: testNamespace},
++		ObjectMeta: metav1.ObjectMeta{Name: testPrevious, Namespace: testNamespace, Annotations: map[string]string{"michelangelo.ai/package-sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}},
+ 		Spec: v2pb.ModelSpec{
+ 			PackageType:           v2pb.DEPLOYABLE_MODEL_PACKAGE_TYPE_TRITON,
+ 			DeployableArtifactUri: []string{testPreviousStorage},
+@@ -178,7 +178,7 @@ func candidateEntry() modelconfig.ModelConfigEntry {
+ }
+ 
+ func previousEntry(phase modelconfig.ModelPhase) modelconfig.ModelConfigEntry {
+-	return modelconfig.ModelConfigEntry{Name: testPrevious, StoragePath: testPreviousStorage, DeploymentName: testDeploymentName, Phase: phase}
++	return modelconfig.ModelConfigEntry{Name: testPrevious, StoragePath: testPreviousStorage, SHA256: previousModel().Annotations["michelangelo.ai/package-sha256"], DeploymentName: testDeploymentName, Phase: phase}
+ }
+ 
+ func TestClusterRollbackActor_Retrieve(t *testing.T) {
+@@ -402,6 +402,20 @@ func TestClusterRollbackActor_Run(t *testing.T) {
+ 			},
+ 			expectedStatus: apipb.CONDITION_STATUS_TRUE,
+ 		},
++		{
++			name:       "previous model entry missing checksum is repaired from its registry record",
++			deployment: rollbackDeployment(testPrevious),
++			setupMocks: func(m *rollbackMocks) {
++				entry := previousEntry(modelconfig.ModelPhaseServing)
++				entry.SHA256 = ""
++				m.expectEntries(entry, candidateEntry())
++				expectRestoreEntry(m)
++				m.expectModelStatus(testPrevious, statusOf(1, readyReplica("pod-a")), nil)
++				expectRestoreRoute(m)
++				expectRemoveCandidate(m, nil)
++			},
++			expectedStatus: apipb.CONDITION_STATUS_TRUE,
++		},
+ 		{
+ 			name:       "previous model only staged is promoted back to serving",
+ 			deployment: rollbackDeployment(testPrevious),
+diff --git a/go/components/deployment/plugins/oss/rollout/strategies/common/canary_rollout_actor.go b/go/components/deployment/plugins/oss/rollout/strategies/common/canary_rollout_actor.go
+index 3217f44..44fb370 100644
+--- a/go/components/deployment/plugins/oss/rollout/strategies/common/canary_rollout_actor.go
++++ b/go/components/deployment/plugins/oss/rollout/strategies/common/canary_rollout_actor.go
+@@ -146,6 +146,15 @@ func (a *CanaryRolloutActor) Run(ctx context.Context, deployment *v2pb.Deploymen
+ 		return retry("ModelResolutionFailed", err.Error()), nil
+ 	}
+ 
++	checksum, err := plugincommon.ResolveDeploymentPackageSHA256(ctx, a.deps.APIHandler, deployment)
++	if err != nil {
++		var resolutionErr *plugincommon.ModelResolutionError
++		if errors.As(err, &resolutionErr) {
++			return conditionsutil.GenerateFalseCondition(condition, resolutionErr.Reason, resolutionErr.Message), nil
++		}
++		return retry("ModelResolutionFailed", err.Error()), nil
++	}
++
+ 	status, failure := a.deps.modelStatus(ctx, a.target, deployment, modelName)
+ 	if failure != nil {
+ 		if failure.Transient() {
+@@ -167,6 +176,7 @@ func (a *CanaryRolloutActor) Run(ctx context.Context, deployment *v2pb.Deploymen
+ 	if err := a.deps.ModelConfigProvider.AddModelToConfig(ctx, a.deps.Logger, kubeClient, inferenceServerName, deployment.Namespace, modelconfig.ModelConfigEntry{
+ 		Name:           modelName,
+ 		StoragePath:    storagePath,
++		SHA256:         checksum,
+ 		DeploymentName: deployment.GetName(),
+ 		Phase:          modelconfig.ModelPhaseCanary,
+ 		CanaryPod:      canary,
+diff --git a/go/components/deployment/plugins/oss/rollout/strategies/common/canary_rollout_actor_test.go b/go/components/deployment/plugins/oss/rollout/strategies/common/canary_rollout_actor_test.go
+index b6f6a4e..57aaa5d 100644
+--- a/go/components/deployment/plugins/oss/rollout/strategies/common/canary_rollout_actor_test.go
++++ b/go/components/deployment/plugins/oss/rollout/strategies/common/canary_rollout_actor_test.go
+@@ -152,6 +152,7 @@ func TestCanaryRolloutActor_Run(t *testing.T) {
+ 		return modelconfig.ModelConfigEntry{
+ 			Name:           testModelName,
+ 			StoragePath:    testModelStoragePath,
++			SHA256:         testModel().Annotations["michelangelo.ai/package-sha256"],
+ 			DeploymentName: testDeploymentName,
+ 			Phase:          modelconfig.ModelPhaseCanary,
+ 			CanaryPod:      pod,
+@@ -353,3 +354,19 @@ func TestCanaryRolloutActor_GetType(t *testing.T) {
+ 	actor := NewCanaryRolloutActor(mocks.deps(testSettings), target)
+ 	assert.Equal(t, "CanaryRolloutComplete-"+testCluster, actor.GetType())
+ }
++
++func TestCanaryRejectsUnboundPackage(t *testing.T) {
++	for _, checksum := range []string{"", "bad", "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"} {
++		t.Run(checksum, func(t *testing.T) {
++			mocks, target := newRolloutFixture(t, clientErrors{}, true)
++			model := testModel()
++			model.Annotations["michelangelo.ai/package-sha256"] = checksum
++			mocks.controlPlane = newControlPlaneClient(t, model)
++			actor := NewCanaryRolloutActor(mocks.deps(testSettings), target)
++			got, err := actor.Run(context.Background(), rolloutDeployment(""), &apipb.Condition{})
++			require.NoError(t, err)
++			assert.Equal(t, apipb.CONDITION_STATUS_FALSE, got.Status)
++			assert.Equal(t, "MissingPackageChecksum", got.Message)
++		})
++	}
++}

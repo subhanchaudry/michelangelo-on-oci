@@ -5,7 +5,7 @@
   "upstream_commit": "22f282b7641ed88af97061c66040cdc18f04347d",
   "patch": {
     "file": "compatibility.patch",
-    "sha256": "c5d9238cbcaee4824b1637e4767568d6eb3ac39884e5c49ac3af7e93b94a8de5"
+    "sha256": "5b6bbf9facd0f1c64c37a7791f637839d6ea0a3eb3b5938c00f4e80283bbaa75"
   },
   "status": "requires-site-validation",
   "excluded_legacy_patch_paths": [
