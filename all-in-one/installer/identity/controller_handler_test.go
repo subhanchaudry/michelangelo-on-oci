@@ -15,7 +15,7 @@ import (
 type recordingControllerHandler struct {
 	api.Handler
 	calls      int
-	principals []Principal
+	principals []OCIPrincipal
 }
 
 func (r *recordingControllerHandler) Create(ctx context.Context, obj client.Object, _ *metav1.CreateOptions) error {
@@ -85,9 +85,9 @@ func TestControllerRejectsMissingInvalidOrUnapprovedCredential(t *testing.T) {
 func TestControllerPreservesVerifiedHumanContext(t *testing.T) {
 	inner := &recordingControllerHandler{}
 	h := &localServiceHandler{Handler: inner}
-	p := Principal{ID: "trusted-user", Subject: "subject", Email: "owner@example.com", Enabled: true, Role: "operator"}
+	p := OCIPrincipal{ID: "trusted-user", Subject: "subject", Email: "owner@example.com", Enabled: true, Role: "operator"}
 	obj := &corev1.ConfigMap{}
-	if err := h.Create(WithPrincipal(context.Background(), p), obj, nil); err != nil {
+	if err := h.Create(WithOCIPrincipal(context.Background(), p), obj, nil); err != nil {
 		t.Fatal(err)
 	}
 	if inner.principals[0] != p || obj.Annotations["identity.michelangelo.ai/creator-id"] != p.ID {

@@ -2,7 +2,7 @@
 # available, but is not selected by this eight-model execution image.
 ARG PYTHON_BASE=python@sha256:2b4f19dae3a777dfc3b76730bda1e82e1f66ab2a2686fa93ca78edbfb4f04ffe
 FROM ${PYTHON_BASE} AS sdk-build
-ENV POETRY_DYNAMIC_VERSIONING_BYPASS=0.12.0 PIP_DISABLE_PIP_VERSION_CHECK=1
+ENV POETRY_DYNAMIC_VERSIONING_BYPASS=0.13.0 PIP_DISABLE_PIP_VERSION_CHECK=1
 COPY docker/builder-requirements.lock /builder-requirements.lock
 RUN python3 -m pip install --no-cache-dir --require-hashes --no-deps -r /builder-requirements.lock
 COPY python /sdk

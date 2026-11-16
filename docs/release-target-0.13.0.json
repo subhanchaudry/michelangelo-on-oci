@@ -1,0 +1,11 @@
+{
+  "candidate": "0.13.0-oci.1-rc.1",
+  "status": "source-candidate-validated",
+  "active_installer_changed": true,
+  "upstream_repository": "https://github.com/michelangelo-ai/michelangelo.git",
+  "upstream_tag": "v0.13.0",
+  "upstream_commit": "22f282b7641ed88af97061c66040cdc18f04347d",
+  "oci_base_commit": "ce4a63fce18fe253ccebfc4cf8c91c244812a3c7",
+  "release_ready": false,
+  "live_validation": false
+}

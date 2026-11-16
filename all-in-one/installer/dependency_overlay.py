@@ -45,11 +45,11 @@ def prepare_source(source):
         for name in ('go.mod','go.sum'):
             shutil.copyfile(reviewed/name, source/'go'/name)
     replace(source/'docker/service.Dockerfile',
-        'FROM gcr.io/distroless/base-debian12:latest@sha256:fabbf1c0c357a3d42550111351daed089b20a2c954df13ee2fcff60602515e84',
+        'FROM gcr.io/distroless/base-nossl-debian12:latest@sha256:e35893f8ca1cabfbd60394af94899c20930c4615355adf97c5da660a51b61bca',
         'FROM '+STATIC)
     replace(source/'docker/ui-prebuilt.Dockerfile',
         'RUN apk add --no-cache --upgrade libexpat',
-        'RUN apk add --no-cache --upgrade libexpat=2.10.0-r0 pcre2=10.49-r0 libx11=1.8.14-r0 tiff=4.7.2-r0 brotli-libs=1.2.1-r0 curl=8.23.0-r0 libcurl=8.23.0-r0')
+        'RUN apk add --no-cache --upgrade libexpat=2.10.0-r0 pcre2=10.49-r0 libx11=1.8.14-r0 tiff=4.7.2-r0 brotli-libs=1.2.1-r0 curl=8.23.0-r0 libcurl=8.23.0-r0 libxslt=1.1.43-r4 musl-utils=1.2.6-r3')
 
 
 def prepare_demo(source):

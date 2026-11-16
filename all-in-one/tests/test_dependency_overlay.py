@@ -16,7 +16,7 @@ class DependencyOverlayTests(unittest.TestCase):
         for name in ('platform','collector'):
             module=(ROOT/'installer/dependencies'/name/'go.mod').read_text()
             self.assertIn('go 1.26.10',module)
-            self.assertIn('golang.org/x/net v0.60.0',module)
+            self.assertIn('golang.org/x/net v0.62.0',module)
             self.assertIn('github.com/klauspost/compress v1.18.7',module)
 
     def test_unknown_platform_module_cannot_be_overwritten(self):
@@ -71,7 +71,7 @@ class DependencyOverlayTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             source = Path(directory); (source/'docker').mkdir()
             service = source/'docker/service.Dockerfile'
-            service.write_text('FROM gcr.io/distroless/base-debian12:latest@sha256:fabbf1c0c357a3d42550111351daed089b20a2c954df13ee2fcff60602515e84\n')
+            service.write_text('FROM gcr.io/distroless/base-nossl-debian12:latest@sha256:e35893f8ca1cabfbd60394af94899c20930c4615355adf97c5da660a51b61bca\n')
             ui = source/'docker/ui-prebuilt.Dockerfile'
             ui.write_text('RUN apk add --no-cache --upgrade libexpat\n')
             overlay.prepare_source(source)

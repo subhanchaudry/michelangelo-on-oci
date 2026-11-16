@@ -1,7 +1,8 @@
 {
-  "upstream_patched_go_mod_sha256": "e697d56234e2bffcc0ec2d1aada3a4fe7ec5032f436d903fea71fed19f5e583c",
+  "upstream_patched_go_mod_sha256": "5c9fa57472326a3ca829d7f9e96b045e8842c69ba6db6e37e0f90819b6417655",
   "go": "1.26.10",
-  "golang.org/x/net": "v0.60.0",
+  "golang.org/x/net": "v0.62.0",
   "github.com/klauspost/compress": "v1.18.7",
-  "github.com/go-jose/go-jose/v4": "v4.1.6"
+  "github.com/go-jose/go-jose/v4": "v4.1.6",
+  "upstream_tag": "v0.13.0"
 }

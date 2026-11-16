@@ -4,7 +4,7 @@ Original OCI deployment and integration code in this repository is licensed unde
 
 ## Michelangelo AI
 
-This distribution integrates Michelangelo AI v0.12.0, upstream commit `ed2a2b09ed9fab57e1479f45e84330a78f3ff8d3`, from [michelangelo-ai/michelangelo](https://github.com/michelangelo-ai/michelangelo). Michelangelo AI is licensed under Apache-2.0. A copy is included in [LICENSES/Michelangelo-Apache-2.0.txt](LICENSES/Michelangelo-Apache-2.0.txt). The OCI overlays modify authentication, runtime configuration, dependency selection, and model lifecycle integration. Upstream copyright notices remain applicable.
+This distribution integrates Michelangelo AI v0.13.0, upstream commit `22f282b7641ed88af97061c66040cdc18f04347d`, from [michelangelo-ai/michelangelo](https://github.com/michelangelo-ai/michelangelo). Michelangelo AI is licensed under Apache-2.0. A copy is included in [LICENSES/Michelangelo-Apache-2.0.txt](LICENSES/Michelangelo-Apache-2.0.txt). The OCI overlays modify authentication, runtime configuration, dependency selection, and model lifecycle integration. Upstream copyright notices remain applicable.
 
 ## Dependencies and images
 

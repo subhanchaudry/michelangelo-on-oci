@@ -1,7 +1,7 @@
 title: Michelangelo all-in-one on OCI
 description: Private OKE and MySQL, application installation, and public HTTPS with OCI IAM login.
 schemaVersion: 1.1.0
-version: 0.12.0-oci.1
+version: 0.13.0-oci.1-rc.1
 locale: en
 informationalText: Select Terraform 1.5.x. This stack creates billable infrastructure and installs the application. Restrict stack and state access; generated secrets are retained in managed state.
 variableGroups:

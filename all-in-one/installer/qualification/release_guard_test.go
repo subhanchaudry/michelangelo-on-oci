@@ -17,7 +17,7 @@ func releasePrincipal(service bool) context.Context {
 	if service {
 		subject = publicationService
 	}
-	return auth.WithPrincipal(context.Background(), auth.Principal{ID: subject, Subject: subject, Enabled: true, Service: service, Role: "operator"})
+	return auth.WithOCIPrincipal(context.Background(), auth.OCIPrincipal{ID: subject, Subject: subject, Enabled: true, Service: service, Role: "operator"})
 }
 func TestReleaseCandidateStartsPending(t *testing.T) {
 	m := &v2.Model{ObjectMeta: metav1.ObjectMeta{Name: "candidate", Namespace: "project", Labels: map[string]string{publicationPrefix + "eligible": "true"}, Annotations: map[string]string{publicationPrefix + "publication-state": "eligible", publicationPrefix + "publication-proof-sha256": "forged"}}}
@@ -192,7 +192,7 @@ func TestReleaseDirectComputeBlockedAndWorkerMayDrain(t *testing.T) {
 	if err := k.Create(human, config); err != nil {
 		t.Fatal(err)
 	}
-	worker := auth.WithPrincipal(context.Background(), auth.Principal{ID: "worker", Subject: "system:serviceaccount:ma-system:michelangelo", Enabled: true, Service: true, Role: "operator"})
+	worker := auth.WithOCIPrincipal(context.Background(), auth.OCIPrincipal{ID: "worker", Subject: "system:serviceaccount:ma-system:michelangelo", Enabled: true, Service: true, Role: "operator"})
 	for _, obj := range []client.Object{&v2.RayJob{}, &v2.SparkJob{}} {
 		if h.validateReleaseMutation(human, obj, nil) == nil {
 			t.Fatal("human launched compute during maintenance")

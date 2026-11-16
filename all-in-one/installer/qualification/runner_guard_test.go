@@ -13,7 +13,7 @@ import (
 )
 
 func runtimeContext() context.Context {
-	return auth.WithPrincipal(context.Background(), auth.Principal{Enabled: true, Service: true, Role: "operator", Subject: "system:serviceaccount:default:michelangelo-lifecycle-runner"})
+	return auth.WithOCIPrincipal(context.Background(), auth.OCIPrincipal{Enabled: true, Service: true, Role: "operator", Subject: "system:serviceaccount:default:michelangelo-lifecycle-runner"})
 }
 func TestRunnerDirectHandlerDenialsBeforeStorage(t *testing.T) {
 	h := &apiHandler{}

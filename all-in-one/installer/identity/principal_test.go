@@ -123,8 +123,8 @@ type testObject struct {
 }
 
 func TestServerAttributionOverridesSpoofAndPreservesOwner(t *testing.T) {
-	p := Principal{ID: "u1", DomainID: "d1", Subject: "s1", Email: "real@example.com", Enabled: true, Role: "operator"}
-	ctx := WithPrincipal(context.Background(), p)
+	p := OCIPrincipal{ID: "u1", DomainID: "d1", Subject: "s1", Email: "real@example.com", Enabled: true, Role: "operator"}
+	ctx := WithOCIPrincipal(context.Background(), p)
 	obj := &testObject{Spec: testSpec{Owner: &testUser{Name: "spoof", ProxyUser: "victim"}, Actor: &testUser{Name: "spoof"}, User: &testUser{Name: "spoof"}}}
 	if e := StampIdentity(ctx, obj, true); e != nil {
 		t.Fatal(e)
@@ -158,8 +158,8 @@ type testProject struct {
 }
 
 func TestProjectOwnerAndImmutableCreator(t *testing.T) {
-	p := Principal{ID: "real-id", Subject: "real-sub", DomainID: "domain", Email: "real@example.com", Role: "admin", Enabled: true}
-	ctx := WithPrincipal(context.Background(), p)
+	p := OCIPrincipal{ID: "real-id", Subject: "real-sub", DomainID: "domain", Email: "real@example.com", Role: "admin", Enabled: true}
+	ctx := WithOCIPrincipal(context.Background(), p)
 	project := &testProject{}
 	project.Spec.Owner = &testProjectOwner{OwningTeam: "team", Owners: []string{"forged@example.com"}, OwnerGroups: []string{"descriptive-group"}}
 	project.SetAnnotations(map[string]string{"identity.michelangelo.ai/creator-id": "forged", "identity.michelangelo.ai/actor-id": "forged"})
@@ -181,8 +181,8 @@ func TestProjectOwnerAndImmutableCreator(t *testing.T) {
 	if _, ok := update.Annotations["identity.michelangelo.ai/unknown"]; ok {
 		t.Fatal("forged identity annotation retained")
 	}
-	service := Principal{ID: "service-id", Subject: "service", Role: "operator", Enabled: true, Service: true}
-	StampIdentity(WithPrincipal(context.Background(), service), update, true)
+	service := OCIPrincipal{ID: "service-id", Subject: "service", Role: "operator", Enabled: true, Service: true}
+	StampIdentity(WithOCIPrincipal(context.Background(), service), update, true)
 	if update.Spec.Actor.Name != "initiator@example.com" || update.Annotations["identity.michelangelo.ai/actor-kind"] != "service" {
 		t.Fatal("service lost upstream human lineage or was misattributed")
 	}

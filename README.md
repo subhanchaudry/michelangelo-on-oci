@@ -2,7 +2,9 @@
 
 Deploy Michelangelo AI on Oracle Cloud Infrastructure with private OKE workloads, OCI IAM sign-in, managed MySQL, Object Storage, and private Container Registry.
 
-**Distribution: 0.12.0-oci.1 · Upstream: Michelangelo v0.12.0**
+**Distribution: 0.13.0-oci.1-rc.1 · Upstream: Michelangelo v0.13.0**
+
+This release candidate has source and local build validation. Fresh OCI site acceptance, supporting-image security qualification, and upgrade/restore qualification remain required before release. See the [validation record](docs/validation-0.13.0.md).
 
 The distribution combines pinned upstream source with OCI deployment infrastructure and integration overlays. It provides Studio access, training and evaluation workflows, model registration, batch prediction, and private model serving. Customers operate the deployment in their own OCI tenancy.
 
@@ -12,9 +14,9 @@ The distribution combines pinned upstream source with OCI deployment infrastruct
 
 | Package | Includes | Use |
 | --- | --- | --- |
-| `michelangelo-all-in-one-0.12.0-oci.1.zip` | Infrastructure, application installation, IAM integration, and eight lifecycle examples | Complete deployment into an existing compartment |
-| `michelangelo-terraform-0.12.0-oci.1.zip` | Infrastructure foundation and a new child compartment | Local Terraform; application installation is separate |
-| `michelangelo-resource-manager-0.12.0-oci.1.zip` | Infrastructure foundation with OCI Console forms | Resource Manager; application installation is separate |
+| `michelangelo-all-in-one-0.13.0-oci.1-rc.1.zip` | Infrastructure, application installation, IAM integration, and eight lifecycle examples | Complete deployment into an existing compartment |
+| `michelangelo-terraform-0.13.0-oci.1-rc.1.zip` | Infrastructure foundation and a new child compartment | Local Terraform; application installation is separate |
+| `michelangelo-resource-manager-0.13.0-oci.1-rc.1.zip` | Infrastructure foundation with OCI Console forms | Resource Manager; application installation is separate |
 
 Use **all-in-one** for a complete installation. Each path owns an independent Terraform state. Do not apply multiple paths to the same resources. Foundation stacks do not automatically hand off to the all-in-one installer.
 
@@ -36,7 +38,7 @@ Use **all-in-one** for a complete installation. Each path owns an independent Te
 
 ## Upstream and compatibility
 
-[Michelangelo AI](https://github.com/michelangelo-ai/michelangelo) is Uber's open-source ML platform. This distribution pins [v0.12.0 at ed2a2b0](https://github.com/michelangelo-ai/michelangelo/tree/ed2a2b09ed9fab57e1479f45e84330a78f3ff8d3); newer upstream documentation may describe different behavior. Upstream features labeled **Coming soon**, including Studio resource views, retain that status.
+[Michelangelo AI](https://github.com/michelangelo-ai/michelangelo) is Uber's open-source ML platform. This distribution pins [v0.13.0 at 22f282b](https://github.com/michelangelo-ai/michelangelo/tree/22f282b7641ed88af97061c66040cdc18f04347d); newer upstream documentation may describe different behavior. Upstream features labeled **Coming soon**, including Studio resource views, retain that status.
 
 The included configuration uses Temporal, Ray, Triton, MySQL, OCI IAM, Object Storage, and OCIR. It is a CPU deployment with one system node and one CPU node by default. High availability, project-level team isolation, GPU workloads, and migration of an existing site's history are outside this configuration. See the operating boundaries before selecting a customer deployment topology.
 
