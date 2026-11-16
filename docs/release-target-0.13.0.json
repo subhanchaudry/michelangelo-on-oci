@@ -1,6 +1,6 @@
 {
-  "candidate": "0.13.0-oci.1-rc.1",
-  "status": "source-candidate-validated",
+  "candidate": "0.13.0-oci.1-rc.2",
+  "status": "support-image-remediation-and-live-acceptance-in-progress",
   "active_installer_changed": true,
   "upstream_repository": "https://github.com/michelangelo-ai/michelangelo.git",
   "upstream_tag": "v0.13.0",

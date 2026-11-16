@@ -338,12 +338,12 @@ def values(config, host, images=None):
             'database': db, 'user': 'michelangelo_app', 'password': '', 'existingSecret': 'michelangelo-mysql',
             'maxConns': 5, 'tls': {'enabled': True, 'caFile': '/mysql-ca/ca.pem', 'serverName': host, 'enableHostVerification': True}}}
     return {'fullnameOverride': APP, 'metadataStorage': {'driver': 'mysql', 'host': '127.0.0.1', 'port': 6446,
-            'database': 'michelangelo', 'user': 'michelangelo_app', 'existingSecret': 'michelangelo-mysql', 'initImage': MYSQL_IMAGE},
+            'database': 'michelangelo', 'user': 'michelangelo_app', 'existingSecret': 'michelangelo-mysql', 'initImage': config.get('mysql_client_image', MYSQL_IMAGE)},
         'objectStorage': {'endpoint': endpoint, 'secure': True, 'region': config['region'], 'bucket': config['artifact_bucket'], 'existingSecret': 'michelangelo-artifacts'},
         'workflow': {'engine': 'temporal', 'endpoint': APP + '-temporal-frontend:7233', 'domain': 'default'},
         'cadence': {'enabled': False}, 'imagePullSecrets': [{'name': 'michelangelo-registry'}],
         'images': {**{name: {'repository': images.get(name, {}).get('pinned', config['registry'] + ':' + name + '-0.11.0-operator.3'), 'tag': ''}
-                      for name in ('apiserver', 'controllermgr', 'worker', 'ui')}, 'envoy': ENVOY_IMAGE,
+                      for name in ('apiserver', 'controllermgr', 'worker', 'ui')}, 'envoy': config.get('envoy_image', ENVOY_IMAGE),
                    'kuberayCollector': images.get('collector', {}).get('pinned', 'ghcr.io/michelangelo-ai/kuberay-collector:v1.5.0')},
         'podSecurityContext': {'runAsNonRoot': True, 'runAsUser': 65534, 'fsGroup': 65534, 'seccompProfile': {'type': 'RuntimeDefault'}},
         'apiserver': {'service': {'type': 'ClusterIP'}, 'ingress': {'enabled': False}, 'metadataStorage': {'enable': True}, 'crdSync': {'enableUpdate': True}},
@@ -355,13 +355,14 @@ def values(config, host, images=None):
         'inferenceServer': {'triton': {'defaultImage': images.get('triton', {}).get('pinned', '')},
             'gateway': {'name': 'ma-gateway', 'serviceName': 'ma-gateway', 'serviceNamespace': 'envoy-gateway-system', 'portName': 'http-8080'}},
         'temporal': {'enabled': True, 'fullnameOverride': APP + '-temporal',
-            'server': {'image': {'repository': TEMPORAL_IMAGE.split(':1.24')[0], 'tag': '1.24.2@' + TEMPORAL_IMAGE.split('@')[1]},
+            'imagePullSecrets': [{'name': 'michelangelo-registry'}],
+            'server': {'image': {'repository': config.get('temporal_server_image', TEMPORAL_IMAGE).split(':', 1)[0], 'tag': config.get('temporal_server_image', TEMPORAL_IMAGE).split(':', 1)[1]},
                 'replicaCount': 1, 'resources': {'requests': {'cpu': '100m', 'memory': '256Mi'}, 'limits': {'memory': '512Mi'}},
                 'config': {'numHistoryShards': 16, 'persistence': stores},
                 'additionalVolumes': [{'name': 'mysql-ca', 'secret': {'secretName': 'michelangelo-mysql-ca'}}],
                 'additionalVolumeMounts': [{'name': 'mysql-ca', 'mountPath': '/mysql-ca', 'readOnly': True}]},
             'schema': {'createDatabase': {'enabled': False}, 'setup': {'enabled': True}, 'update': {'enabled': True}},
-            'admintools': {'enabled': False, 'image': {'repository': 'docker.io/temporalio/admin-tools', 'tag': TEMPORAL_ADMIN.split(':', 1)[1]}},
+            'admintools': {'enabled': False, 'image': {'repository': config.get('temporal_admin_image', TEMPORAL_ADMIN).split(':', 1)[0], 'tag': config.get('temporal_admin_image', TEMPORAL_ADMIN).split(':', 1)[1]}},
             'web': {'enabled': False}, 'cassandra': {'enabled': False}, 'mysql': {'enabled': False}, 'postgresql': {'enabled': False},
             'elasticsearch': {'enabled': False}, 'prometheus': {'enabled': False}, 'grafana': {'enabled': False}},
         'monitoring': {'enabled': False}}
@@ -455,6 +456,8 @@ def build(config, source, initial_values):
     save(WORK / 'images.json', images)
     import support_images
     support_images.build(sys.modules[__name__], config, tag, manifest_sha256)
+    import release_support_images
+    release_support_images.build(sys.modules[__name__], config, tag, manifest_sha256)
     return images
 
 
@@ -510,14 +513,16 @@ def qualify_ray_runtime(image):
 
 
 def prerequisites(config, images):
+    import operator_images
+    operator_images.prepare(sys.modules[__name__], config)
     run(['helm', 'repo', 'add', 'kuberay', 'https://ray-project.github.io/kuberay-helm/'])
     run(['helm', 'repo', 'add', 'kyverno', 'https://kyverno.github.io/kyverno/'])
     run(['helm', 'repo', 'update'])
-    run(['helm', 'upgrade', '--install', 'kuberay', 'kuberay/kuberay-operator', '--version', '1.5.0',
+    run(['helm', 'upgrade', '--install', 'kuberay', 'kuberay/kuberay-operator', '--version', '1.7.2', '-f', WORK / 'kuberay-values.json',
          '-n', 'kuberay-system', '--create-namespace', '--wait', '--timeout', '10m'])
     run(['helm', 'upgrade', '--install', 'envoy-gateway', 'oci://docker.io/envoyproxy/gateway-helm',
-         '--version', 'v1.9.2', '-n', 'envoy-gateway-system', '--create-namespace', '--wait', '--timeout', '10m'])
-    run(['helm', 'upgrade', '--install', 'kyverno', 'kyverno/kyverno', '--version', '3.5.2',
+         '--version', 'v1.9.2', '-f', WORK / 'gateway-values.json', '-n', 'envoy-gateway-system', '--create-namespace', '--wait', '--timeout', '10m'])
+    run(['helm', 'upgrade', '--install', 'kyverno', 'kyverno/kyverno', '--version', '3.9.2', '-f', WORK / 'kyverno-values.json',
          '-n', 'kyverno', '--create-namespace', '--wait', '--timeout', '10m',
          '--set', 'admissionController.replicas=1', '--set', 'backgroundController.replicas=1',
          '--set', 'cleanupController.replicas=1', '--set', 'reportsController.replicas=1'])
@@ -543,6 +548,8 @@ def prerequisites(config, images):
 
 
 def deploy(config, source, host, images):
+    if not all(config.get(name + '_image') for name in ('mysql_client', 'envoy', 'temporal_server', 'temporal_admin')):
+        raise RuntimeError('Reviewed support image builds are required before deployment')
     import yaml
     import runtime
     # nginx resolves the protected log upstream when it starts; create its

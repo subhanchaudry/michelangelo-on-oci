@@ -19,9 +19,9 @@ The default hostname uses the reserved IP with `sslip.io`. For an owned `public_
 Keep extracted deployment workspaces and sensitive state outside the source repository.
 
 ```sh
-shasum -a 256 -c michelangelo-all-in-one-0.13.0-oci.1-rc.1.zip.sha256
+shasum -a 256 -c michelangelo-all-in-one-0.13.0-oci.1-rc.2.zip.sha256
 mkdir my-site
-unzip michelangelo-all-in-one-0.13.0-oci.1-rc.1.zip -d my-site
+unzip michelangelo-all-in-one-0.13.0-oci.1-rc.2.zip -d my-site
 cd my-site
 ```
 

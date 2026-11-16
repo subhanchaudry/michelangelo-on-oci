@@ -2,7 +2,7 @@
 
 Deploy Michelangelo AI on Oracle Cloud Infrastructure with private OKE workloads, OCI IAM sign-in, managed MySQL, Object Storage, and private Container Registry.
 
-**Distribution: 0.13.0-oci.1-rc.1 · Upstream: Michelangelo v0.13.0**
+**Distribution: 0.13.0-oci.1-rc.2 · Upstream: Michelangelo v0.13.0**
 
 This release candidate has source and local build validation. Fresh OCI site acceptance, supporting-image security qualification, and upgrade/restore qualification remain required before release. See the [validation record](docs/validation-0.13.0.md).
 
@@ -14,9 +14,9 @@ The distribution combines pinned upstream source with OCI deployment infrastruct
 
 | Package | Includes | Use |
 | --- | --- | --- |
-| `michelangelo-all-in-one-0.13.0-oci.1-rc.1.zip` | Infrastructure, application installation, IAM integration, and eight lifecycle examples | Complete deployment into an existing compartment |
-| `michelangelo-terraform-0.13.0-oci.1-rc.1.zip` | Infrastructure foundation and a new child compartment | Local Terraform; application installation is separate |
-| `michelangelo-resource-manager-0.13.0-oci.1-rc.1.zip` | Infrastructure foundation with OCI Console forms | Resource Manager; application installation is separate |
+| `michelangelo-all-in-one-0.13.0-oci.1-rc.2.zip` | Infrastructure, application installation, IAM integration, and eight lifecycle examples | Complete deployment into an existing compartment |
+| `michelangelo-terraform-0.13.0-oci.1-rc.2.zip` | Infrastructure foundation and a new child compartment | Local Terraform; application installation is separate |
+| `michelangelo-resource-manager-0.13.0-oci.1-rc.2.zip` | Infrastructure foundation with OCI Console forms | Resource Manager; application installation is separate |
 
 Use **all-in-one** for a complete installation. Each path owns an independent Terraform state. Do not apply multiple paths to the same resources. Foundation stacks do not automatically hand off to the all-in-one installer.
 

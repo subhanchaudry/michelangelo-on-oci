@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"encoding/hex"
+	"github.com/gogo/protobuf/proto"
 	"reflect"
 	"strings"
 
@@ -135,7 +136,7 @@ func validatePublicationMutation(ctx context.Context, obj, original client.Objec
 				return status.Error(codes.FailedPrecondition, "registered model identity is immutable")
 			}
 			// A proof cannot survive changes to the candidate's immutable inputs.
-			if !reflect.DeepEqual(model.Spec, old.Spec) {
+			if !proto.Equal(&model.Spec, &old.Spec) {
 				return status.Error(codes.FailedPrecondition, "registered model specification is immutable")
 			}
 			for key, value := range old.GetAnnotations() {

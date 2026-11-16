@@ -16,6 +16,29 @@ def quote_secret_placeholders(text):
     return re.sub(pattern, lambda match: match.group(1) + "'${" + match.group(2) + ": }'", text)
 
 
+def publication_transcoding(text):
+    config = mysql_router.yaml.safe_load(text)
+    matches = []
+    def visit(node):
+        if isinstance(node, dict):
+            if node.get('@type') == 'type.googleapis.com/envoy.extensions.filters.http.grpc_json_transcoder.v3.GrpcJsonTranscoder':
+                matches.append(node)
+            for child in node.values():
+                visit(child)
+        elif isinstance(node, list):
+            for child in node:
+                visit(child)
+    visit(config)
+    if len(matches) != 1 or not matches[0].get('services'):
+        raise ValueError('Expected one explicit Envoy transcoder allowlist')
+    # The publication reconciler reads sealed evaluations over this authenticated
+    # API. Upstream derives its list from Studio imports, which omit this service.
+    service = 'michelangelo.api.v2.EvaluationReportService'
+    if service not in matches[0]['services']:
+        matches[0]['services'].append(service)
+    return mysql_router.yaml.safe_dump(config, sort_keys=False)
+
+
 def render(text):
     # The upstream namespace setup Job includes two duplicate label names
     # via parent and Temporal helpers. Keep the Temporal schema labels.
@@ -41,6 +64,8 @@ def render(text):
             for key, value in document.get('data', {}).items():
                 if key.endswith('.yaml') and isinstance(value, str):
                     document['data'][key] = quote_secret_placeholders(value)
+                    if key == 'envoy.yaml':
+                        document['data'][key] = publication_transcoding(document['data'][key])
         spec = document.get('spec', {})
         pod = spec if document.get('kind') == 'Pod' else spec.get('template', {}).get('spec', {})
         if document.get('kind') == 'Deployment' and document.get('metadata', {}).get('name') == 'michelangelo-apiserver':
@@ -50,6 +75,23 @@ def render(text):
                     entries.append({'name': 'MA_IDENTITY_RESOLVE_URL',
                                     'value': 'http://ma-identity.ma-system.svc.cluster.local:8081/internal/resolve'})
                     container['env'] = entries
+        if document.get('kind') == 'Job' and document.get('metadata', {}).get('name') == 'michelangelo-temporal-namespace-setup':
+            matches = [c for c in pod.get('containers', []) if c.get('name') == 'register-namespace']
+            if len(matches) != 1:
+                raise ValueError('Unexpected Temporal namespace setup container')
+            container = matches[0]
+            pull_secret = {'name': 'michelangelo-registry'}
+            if pull_secret not in pod.setdefault('imagePullSecrets', []):
+                pod['imagePullSecrets'].append(pull_secret)
+            original = '\n'.join(container.get('command', []))
+            match = re.search(r'tctl --address ([a-zA-Z0-9.-]+:[0-9]+) --namespace ([a-zA-Z0-9._-]+) namespace describe', original)
+            if not match:
+                raise ValueError('Unexpected Temporal namespace setup command')
+            endpoint, namespace = match.groups()
+            base = 'temporal --address ' + endpoint + ' --namespace ' + namespace + ' operator namespace '
+            container['command'] = ['sh', '-ec',
+                base + 'describe >/dev/null 2>&1 || ' + base +
+                'create --retention 7d --description "Default Michelangelo namespace"']
         for container in pod.get('containers', []) + pod.get('initContainers', []):
             image = container['image']
             first = image.split('/')[0]

@@ -6,6 +6,14 @@ Original OCI deployment and integration code in this repository is licensed unde
 
 This distribution integrates Michelangelo AI v0.13.0, upstream commit `22f282b7641ed88af97061c66040cdc18f04347d`, from [michelangelo-ai/michelangelo](https://github.com/michelangelo-ai/michelangelo). Michelangelo AI is licensed under Apache-2.0. A copy is included in [LICENSES/Michelangelo-Apache-2.0.txt](LICENSES/Michelangelo-Apache-2.0.txt). The OCI overlays modify authentication, runtime configuration, dependency selection, and model lifecycle integration. Upstream copyright notices remain applicable.
 
+## Temporal and Dockerize source builds
+
+The workflow images rebuild Temporal 1.24.2 (MIT) with dependency updates and use Dockerize 0.16.0 (MIT). Their pinned source commits are recorded by the installer. Original license files are retained in built images. The Temporal server and MySQL schema sources remain on 1.24.2.
+
+## Caddy, KubeRay, Kyverno, and Envoy Gateway source builds
+
+The installer rebuilds Caddy 2.11.9, KubeRay 1.7.2, Kyverno 1.19.2, and Envoy Gateway 1.9.2 with pinned source commits and dependency updates. These projects use Apache-2.0; original license and applicable notice files are retained in the built images. Kyverno 1.19.2 retains the legacy ClusterPolicy behavior required by this distribution.
+
 ## Dependencies and images
 
 Release ZIPs contain deployment source and dependency instructions; they do not bundle upstream container-image layers or downloaded Python, Go, or operating-system packages. Installation obtains third-party software from the configured upstream sources and builds images in the customer's registry.

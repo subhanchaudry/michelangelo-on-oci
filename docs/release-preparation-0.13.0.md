@@ -1,6 +1,6 @@
 # Michelangelo on OCI 0.13 release preparation
 
-Preparation target: `0.13.0-oci.1-rc.1`. The installer now selects pinned 0.13 source after local reconstruction and compatibility checks. This remains a release candidate; the [validation record](validation-0.13.0.md) separates completed local checks from remaining release gates.
+Preparation target: `0.13.0-oci.1-rc.2`. The installer now selects pinned 0.13 source after local reconstruction and compatibility checks. This remains a release candidate; the [validation record](validation-0.13.0.md) separates completed local checks from remaining release gates.
 
 ## Source baseline
 

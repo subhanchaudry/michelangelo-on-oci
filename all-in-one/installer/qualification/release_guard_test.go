@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"github.com/gogo/protobuf/jsonpb"
 	"github.com/michelangelo-ai/michelangelo/go/auth"
 	apipb "github.com/michelangelo-ai/michelangelo/proto-go/api"
 	v2 "github.com/michelangelo-ai/michelangelo/proto-go/api/v2"
@@ -200,5 +201,25 @@ func TestReleaseDirectComputeBlockedAndWorkerMayDrain(t *testing.T) {
 		if err := h.validateReleaseMutation(worker, obj, nil); err != nil {
 			t.Fatal("worker could not drain", err)
 		}
+	}
+}
+
+func TestReleaseFinalizationPreservesSpecAcrossJSONRoundTrip(t *testing.T) {
+	old := &v2.Model{ObjectMeta: metav1.ObjectMeta{Name: "candidate", Namespace: "project", UID: "native-id", Labels: map[string]string{publicationPrefix + "eligible": "false"}, Annotations: map[string]string{publicationPrefix + "publication-state": "pending"}}, Spec: v2.ModelSpec{Description: "synthetic model", ModelArtifactUri: []string{"s3://example/model"}}}
+	wire, err := (&jsonpb.Marshaler{EmitDefaults: true}).MarshalToString(&old.Spec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	next := old.DeepCopy()
+	if err := jsonpb.Unmarshal(strings.NewReader(wire), &next.Spec); err != nil {
+		t.Fatal(err)
+	}
+	next.Annotations[publicationPrefix+"publication-state"] = "quarantined"
+	if err := validatePublicationMutation(releasePrincipal(true), next, old, nil); err != nil {
+		t.Fatalf("equivalent API round trip rejected: %v", err)
+	}
+	next.Spec.Description = "changed inputs"
+	if validatePublicationMutation(releasePrincipal(true), next, old, nil) == nil {
+		t.Fatal("actual specification change accepted")
 	}
 }

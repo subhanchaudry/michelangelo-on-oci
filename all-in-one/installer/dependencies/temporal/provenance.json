@@ -1,0 +1,6 @@
+{
+  "repository": "https://github.com/temporalio/temporal.git",
+  "tag": "v1.24.2",
+  "commit": "5677de76317b572458b8f151525886df87869972",
+  "purpose": "Preserve Temporal server and schema version; update vulnerable Go dependencies. Retain original otelgrpc tracing adapter API."
+}

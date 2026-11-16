@@ -25,6 +25,8 @@ def main():
     config = {'object_storage_namespace': 'example', 'region': 'us-chicago-1',
               'artifact_bucket': 'example-artifacts', 'registry': 'registry.example/release',
               'public_hostname': 'studio.example.com'}
+    config.update({name + '_image': 'registry.example/' + name + ':candidate@sha256:' + 'b' * 64
+                   for name in ('mysql_client', 'envoy', 'temporal_server', 'temporal_admin')})
     images = {name: {'pinned': 'registry.example/' + name + '@sha256:' + 'a' * 64}
               for name in ('apiserver', 'controllermgr', 'worker', 'ui', 'collector', 'triton')}
     with tempfile.TemporaryDirectory() as directory:
@@ -46,8 +48,21 @@ def main():
     protected = subprocess.check_output([sys.executable, '-B', str(ROOT / 'installer/transport/render.py')],
                                         input=rendered, text=True, env=env)
     documents = [doc for doc in mysql_router.load(protected) if doc]
+    namespace_jobs = [d for d in documents if d.get('kind') == 'Job' and d.get('metadata', {}).get('name') == 'michelangelo-temporal-namespace-setup']
+    if len(namespace_jobs) != 1:
+        raise RuntimeError('Missing Temporal namespace setup job')
+    registration = namespace_jobs[0]['spec']['template']['spec']['containers'][0]
+    if registration['image'] != config['temporal_admin_image'] or ' operator namespace ' not in registration['command'][-1] or 'tctl ' in registration['command'][-1]:
+        raise RuntimeError('Namespace setup does not use the reviewed admin image and supported CLI')
+    envoy_config = next(d['data']['envoy.yaml'] for d in documents if d.get('kind') == 'ConfigMap' and 'envoy.yaml' in d.get('data', {}))
+    if 'michelangelo.api.v2.EvaluationReportService' not in envoy_config:
+        raise RuntimeError('Publication evaluation service is not transcoded')
     checked = set()
     for doc in documents:
+        pod = doc.get('spec', {}).get('template', {}).get('spec', {})
+        for container in pod.get('containers', []) + pod.get('initContainers', []):
+            if container.get('image', '').startswith('registry.example/') and {'name': 'michelangelo-registry'} not in pod.get('imagePullSecrets', []):
+                raise RuntimeError('Private image lacks registry pull credentials: ' + doc['metadata']['name'] + '/' + container['name'])
         if doc['kind'] == 'Service' and doc.get('spec', {}).get('type', 'ClusterIP') != 'ClusterIP':
             raise RuntimeError('Default OCI chart exposes a nonprivate service')
         if doc['kind'] != 'Deployment':

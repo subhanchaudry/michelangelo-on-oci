@@ -1,4 +1,4 @@
-# Michelangelo on OCI 0.13.0-oci.1-rc.1
+# Michelangelo on OCI 0.13.0-oci.1-rc.2
 
 Release candidate for evaluation. Local application validation does not establish fresh-site acceptance or upgrade readiness.
 
@@ -10,6 +10,15 @@ Release candidate for evaluation. Local application validation does not establis
 - Retained upstream per-replica rollout readiness and added OCI template reconciliation coverage.
 - Updated the Go networking dependency to `golang.org/x/net v0.62.0` and the UI image's Alpine package fixes; rebuilt and scanned the four application images.
 - Expanded source checks to authentication subpackages, deployment and inference packages, worker activity serialization, application builds, chart rendering and TLS transformation. Added a separate Studio CI job.
+
+## Rc.2 support-image changes
+
+- Build a MySQL client-only setup image and a patched Envoy image.
+- Rebuild Temporal 1.24.2 and its SQL tool with updated dependencies, preserving the existing server and schema versions.
+- Use the supported Temporal namespace CLI and reject deployment if reviewed support-image builds are missing.
+- Build compatible KubeRay and Kyverno images with updated dependencies; preserve Envoy Gateway 1.9.2 while updating its Go dependencies.
+- Correct model finalization across the HTTP gateway and protobuf JSON serialization while retaining immutable specification and provenance enforcement.
+- Live acceptance and the complete deployed-image inventory remain required before publication.
 
 ## Distribution
 

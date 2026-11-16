@@ -18,8 +18,8 @@ from urllib.request import Request, build_opener, HTTPRedirectHandler, urlopen
 
 NAME = "ma-browser-edge"
 DEFAULT_CADDY = "docker.io/library/caddy:2.11.6-alpine@sha256:d44355d3c2149dc580ce2cac735955d1c08d3d00882c30489c241aa51a5c10d9"
-DEFAULT_PROXY = "quay.io/oauth2-proxy/oauth2-proxy:v7.15.5@sha256:8498b0d0ef0a7b29686414000a08aee467f02d0299c9ed1e006a8f33fc017916"
-DEFAULT_SESSION_STORE = "docker.io/library/redis:8.2.10-alpine@sha256:c4206b4e79e4bcc8b30679eeece996d98b27ffb1f0a15fd567338ed4d0880258"
+DEFAULT_PROXY = "quay.io/oauth2-proxy/oauth2-proxy:v7.15.6@sha256:01da265f8e371e6d3043b97829e171f3e4d53f9dc3817be15fb4fc29c92fe2a6"
+DEFAULT_SESSION_STORE = "docker.io/library/redis:8.2-alpine@sha256:a18fce2f705d9782ccf6968f8dd94fa04566ff97e10a8d322ad72645243e4c0c"
 EMAIL = re.compile(r"^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$")
 HOST = re.compile(r"^(?=.{1,253}$)[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?$")
 

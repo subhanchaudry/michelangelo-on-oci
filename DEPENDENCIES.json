@@ -1,5 +1,5 @@
 {
-  "distribution": "0.13.0-oci.1-rc.1",
+  "distribution": "0.13.0-oci.1-rc.2",
   "upstream": {
     "name": "Michelangelo AI",
     "version": "v0.13.0",
@@ -26,11 +26,46 @@
     "installer/dependencies/*-requirements.lock (all-in-one)",
     "installer/dependencies/platform/go.mod (all-in-one)",
     "installer/dependencies/collector/go.mod (all-in-one)",
-    "installer/release/DEPENDENCIES.json (all-in-one)"
+    "installer/release/DEPENDENCIES.json (all-in-one)",
+    "installer/dependencies/temporal/go.mod (all-in-one)",
+    "installer/dependencies/caddy/go.mod (all-in-one)",
+    "installer/dependencies/kuberay/go.mod (all-in-one)",
+    "installer/dependencies/kyverno/go.mod (all-in-one)",
+    "installer/dependencies/gateway/go.mod (all-in-one)"
   ],
   "mysql_router": {
     "version": "26.10.0",
     "source": "container-registry.oracle.com/mysql/community-router",
     "digest": "sha256:3de30bd493403d2cc87f0a1070686911ded03e473161c4c235bddfe03dfc0d3b"
+  },
+  "temporal": {
+    "version": "1.24.2",
+    "commit": "5677de76317b572458b8f151525886df87869972",
+    "dependency_updates": "installer/dependencies/temporal",
+    "schema_version_unchanged": true
+  },
+  "dockerize": {
+    "version": "0.16.0",
+    "commit": "079eb740a8fecb12b7705bfaa1abb06888c60c2e"
+  },
+  "caddy": {
+    "version": "2.11.9",
+    "commit": "0d98caea58f794f88e709b1bef2880996a471bca",
+    "dependency_updates": "installer/dependencies/caddy"
+  },
+  "kuberay": {
+    "version": "1.7.2",
+    "commit": "fb5edf56ce1e2783bf3adbc4fbec97488ef208f1",
+    "dependency_updates": "installer/dependencies/kuberay"
+  },
+  "kyverno": {
+    "version": "1.19.2",
+    "commit": "e63308f1e16c05cd009ac4864be6ec25c66b49be",
+    "dependency_updates": "installer/dependencies/kyverno"
+  },
+  "envoy_gateway": {
+    "version": "1.9.2",
+    "commit": "f9f92a112a4033abed5c8d43a5f7e37da257403c",
+    "dependency_updates": "installer/dependencies/gateway"
   }
 }
