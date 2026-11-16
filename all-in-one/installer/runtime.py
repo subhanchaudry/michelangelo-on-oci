@@ -66,6 +66,29 @@ def token_registration(account, cluster_name, cluster_data, image):
     return token
 
 
+def configure_serving_probes(permissions):
+    """Allow the trusted serving controller's 0.13 per-replica POST probe.
+
+    Kubernetes authorizes POST to pods/proxy as create. Keep this permission in
+    the dedicated model namespaces; compute and workflow runners do not get it.
+    """
+    catalog = json.loads((core.RELEASE / 'platform/serving/lifecycle/catalog.json').read_text())
+    projects = {model['project'] for model in catalog['models']}
+    seen = set()
+    rule = {'apiGroups': [''], 'resources': ['pods/proxy'], 'verbs': ['create']}
+    for permission in permissions:
+        if permission.get('kind') != 'Role' or permission['metadata']['name'] != 'michelangelo-serving-manager':
+            continue
+        namespace = permission['metadata']['namespace']
+        if namespace not in projects or namespace in seen:
+            raise RuntimeError('Unexpected or duplicate serving-manager namespace')
+        seen.add(namespace)
+        if rule not in permission['rules']:
+            permission['rules'].append(dict(rule))
+    if seen != projects:
+        raise RuntimeError('Serving-manager permissions do not cover the reviewed model projects')
+
+
 def install(config, images):
     release = core.RELEASE / 'platform/releases/v0.11.0'
     permissions = json.loads((release / 'serving-permissions.example.json').read_text())['items']
@@ -86,6 +109,7 @@ def install(config, images):
                 for rule in permission['rules']:
                     if rule.get('resources') == ['services'] and rule.get('verbs') == ['get']:
                         rule['resourceNames'] = ['ma-gateway']
+    configure_serving_probes(permissions)
     core.apply(permissions)
     account = 'michelangelo-compute-manager'
     core.apply({'apiVersion': 'v1', 'kind': 'ServiceAccount', 'metadata': metadata(account), 'automountServiceAccountToken': False})

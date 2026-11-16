@@ -25,3 +25,5 @@ Review current vulnerabilities throughout the deployment lifetime. A source rele
 Customers own tenancy permissions, workload suitability, capacity, access administration, notifications, retention, and recovery objectives. This repository does not confer Oracle or Uber product certification, a managed-service SLA, or an external security approval.
 
 Upstream functionality labeled **Coming soon** retains that status. The OCI distribution does not change upstream support commitments or guarantee features described by a newer upstream version.
+
+The trusted serving-manager identity can POST through the Kubernetes pod proxy in the dedicated model project namespaces. Michelangelo 0.13 uses this to check model readiness on each replica before routing traffic. Kubernetes RBAC cannot restrict this permission to a particular HTTP path; keep the serving credential confined to the controller. Workflow runners and the compute-manager identity do not receive this permission.

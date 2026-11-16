@@ -99,6 +99,10 @@ def render(text):
                 container['image'] = 'docker.io/library/' + image
             elif '.' not in first and ':' not in first and first != 'localhost':
                 container['image'] = 'docker.io/' + image
+            if container['image'] in ('docker.io/library/busybox', 'docker.io/library/busybox:latest'):
+                # The namespace wait helper is untagged upstream. Bind the
+                # linux/amd64 binary exercised during OCI qualification.
+                container['image'] = 'docker.io/library/busybox@sha256:f97baa533a26513c453a362be331a43eb60214302f449c16571b23cea141dce4'
             if container['image'] == 'docker.io/library/busybox:1.36':
                 container['image'] += '@sha256:73aaf090f3d85aa34ee199857f03fa3a95c8ede2ffd4cc2cdb5b94e566b11662'
     return mysql_router.yaml.safe_dump_all(docs, explicit_start=True, sort_keys=False)
