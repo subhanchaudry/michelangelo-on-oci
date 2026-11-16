@@ -61,6 +61,12 @@ def build(core, config, tag, manifest_sha256):
         digest = json.loads(metadata.read_text())['containerimage.digest']
         record = image_provenance.pin({name: {'image': image, 'digest': digest,
             'pinned': config['registry'] + '@' + digest}}, core.run)[name]
+        if name == 'gateway':
+            # The chart's pre-install/upgrade hook overrides the entrypoint.
+            core.run(['docker', 'run', '--rm', '--platform', 'linux/amd64',
+                      '--entrypoint', 'envoy-gateway', record['pinned'],
+                      'certgen', '--help'], capture=True)
+            record['chart_certgen_command_verified'] = True
         record.update(installer_source_manifest_sha256=manifest_sha256,
                       platform='linux/amd64', release=tag, security_gate='requires-runtime-scan')
         images[name] = record

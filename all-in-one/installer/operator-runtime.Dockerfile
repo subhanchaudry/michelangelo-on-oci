@@ -25,7 +25,8 @@ COPY --from=kuberay-build /out/manager /app
 COPY --from=kuberay-build /src/kuberay/LICENSE /licenses/kuberay-LICENSE
 
 FROM runtime AS gateway
-COPY --from=gateway-build /out/envoy-gateway /app
+COPY --from=gateway-build /out/envoy-gateway /usr/local/bin/envoy-gateway
+ENTRYPOINT ["/usr/local/bin/envoy-gateway"]
 COPY --from=gateway-build /src/gateway/LICENSE /licenses/gateway-LICENSE
 
 FROM runtime AS kyverno
