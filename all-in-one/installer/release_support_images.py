@@ -61,6 +61,17 @@ def build(core, config, tag, manifest_sha256):
         digest = json.loads(metadata.read_text())['containerimage.digest']
         record = image_provenance.pin({name: {'image': image, 'digest': digest,
             'pinned': config['registry'] + '@' + digest}}, core.run)[name]
+        if name == 'temporal_admin':
+            # Exercise the chart's non-root reader before publishing any schema Job.
+            core.run(['docker', 'run', '--rm', '--platform', 'linux/amd64',
+                      '--user', '1000:1000', '--network=none', '--read-only',
+                      '--cap-drop=ALL', '--security-opt=no-new-privileges',
+                      '--entrypoint', 'sh', record['pinned'], '-ec',
+                      'test -d /etc/temporal/schema/mysql/v8/temporal/versioned && '
+                      'test -d /etc/temporal/schema/mysql/v8/visibility/versioned && '
+                      'find /etc/temporal/schema/mysql/v8 -type f -exec cat {} + >/dev/null'],
+                     capture=True)
+            record['nonroot_schema_read_verified'] = True
         if name == 'gateway':
             # The chart's pre-install/upgrade hook overrides the entrypoint.
             core.run(['docker', 'run', '--rm', '--platform', 'linux/amd64',

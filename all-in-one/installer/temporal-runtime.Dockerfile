@@ -14,6 +14,8 @@ USER 0:0
 RUN rm -f /usr/local/bin/tdbg /usr/local/bin/temporal-cassandra-tool /usr/local/bin/temporal-elasticsearch-tool && rm -rf /etc/temporal/schema
 COPY --from=build /out/temporal-sql-tool /usr/local/bin/temporal-sql-tool
 COPY temporal/schema/mysql /etc/temporal/schema/mysql
+# Git checkouts inherit the private installer umask; schema assets are public.
+RUN chmod -R a+rX /etc/temporal/schema/mysql
 COPY temporal/LICENSE /usr/share/licenses/temporal/LICENSE
 USER 1000:1000
 FROM admin AS server

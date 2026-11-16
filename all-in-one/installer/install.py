@@ -541,7 +541,8 @@ def prerequisites(config, images):
     apply({'apiVersion': 'gateway.networking.k8s.io/v1', 'kind': 'GatewayClass', 'metadata': {'name': 'ma-gateway'},
            'spec': {'controllerName': 'gateway.envoyproxy.io/gatewayclass-controller'}})
     apply({'apiVersion': 'gateway.envoyproxy.io/v1alpha1', 'kind': 'EnvoyProxy', 'metadata': {'name': 'ma-private-proxy', 'namespace': 'ma-gateway'},
-           'spec': {'provider': {'type': 'Kubernetes', 'kubernetes': {'envoyService': {'type': 'ClusterIP', 'name': 'ma-gateway'}}}}})
+           'spec': {'provider': {'type': 'Kubernetes', 'kubernetes': {'envoyService': {'type': 'ClusterIP', 'name': 'ma-gateway'},
+                'envoyDeployment': {'pod': {'imagePullSecrets': [{'name': 'michelangelo-registry'}]}}}}}})
     apply({'apiVersion': 'gateway.networking.k8s.io/v1', 'kind': 'Gateway', 'metadata': {'name': 'ma-gateway', 'namespace': 'ma-gateway'},
            'spec': {'gatewayClassName': 'ma-gateway', 'infrastructure': {'parametersRef': {'group': 'gateway.envoyproxy.io', 'kind': 'EnvoyProxy', 'name': 'ma-private-proxy'}},
                     'listeners': [{'name': 'http', 'protocol': 'HTTP', 'port': 8080, 'allowedRoutes': {'namespaces': {'from': 'All'}}}]}})
@@ -562,7 +563,7 @@ def deploy(config, source, host, images):
     # Preserve checksum-verified source chart; transport is a post-render step.
     args = ['helm', 'upgrade', '--install', APP, str(source / 'helm/michelangelo'), '-n', NS,
             '-f', str(values_file), '--post-renderer', sys.executable, '--post-renderer-args', str(ROOT / 'transport/render.py'),
-            '--wait', '--timeout', '25m']
+            '--wait', '--wait-for-jobs', '--timeout', '25m']
     run(['kubectl', '-n', NS, 'delete', 'job', APP + '-temporal-schema', APP + '-temporal-namespace-setup', '--ignore-not-found'], sensitive=True)
     run(args, env=env, sensitive=True)
     for component in ('apiserver', 'controllermgr', 'worker', 'ui', 'envoy', 'temporal-frontend', 'temporal-history', 'temporal-matching', 'temporal-worker'):
