@@ -191,6 +191,25 @@ def complete(core):
     (core.WORK/'active-upgrade-checkpoint.json').unlink(missing_ok=True)
 
 
+def completed_bootstrap_jobs(core):
+    """Only completed, release-owned bootstrap Jobs may be recreated by rollback."""
+    names = {core.APP + '-temporal-schema', core.APP + '-temporal-namespace-setup'}
+    found = []
+    for job in get(core, 'jobs.batch', core.NS).get('items', []):
+        meta = job.get('metadata', {})
+        if meta.get('name') not in names:
+            continue
+        annotations = meta.get('annotations', {})
+        if (annotations.get('meta.helm.sh/release-name') != core.APP or
+                annotations.get('meta.helm.sh/release-namespace') != core.NS):
+            raise RuntimeError('Bootstrap Job is not owned by this release; maintenance retained')
+        if not any(c.get('type') == 'Complete' and c.get('status') == 'True'
+                   for c in job.get('status', {}).get('conditions', [])):
+            raise RuntimeError('Bootstrap Job has not completed; maintenance retained')
+        found.append(meta['name'])
+    return sorted(found)
+
+
 def rollback(core, directory):
     """Restore application configuration only; never restore a database implicitly."""
     checkpoint=json.loads((directory/'checkpoint.json').read_text())
@@ -204,6 +223,7 @@ def rollback(core, directory):
         raise RuntimeError('No complete rollback checkpoint; maintenance retained')
     if any(not terminal(x) for x in get(core,'pipelineruns.michelangelo.api').get('items',[])) or active_compute(core):
         raise RuntimeError('Rollback refuses active workflows; maintenance retained')
+    bootstrap_jobs = completed_bootstrap_jobs(core)
     for item in checkpoint['resources']:
         meta=item['metadata']
         group=item['apiVersion'].split('/')[0] if '/' in item['apiVersion'] else ''
@@ -227,6 +247,10 @@ def rollback(core, directory):
             meta.pop(field,None)
         meta.get('annotations',{}).pop('kubectl.kubernetes.io/last-applied-configuration',None)
         core.apply(item)
+    # Kubernetes Job pod templates are immutable across image changes.
+    # Helm recreates these completed setup Jobs from the checkpoint revision.
+    if bootstrap_jobs:
+        core.run(['kubectl', '-n', core.NS, 'delete', 'job', *bootstrap_jobs, '--wait=true', '--timeout=60s'])
     core.run(['helm','rollback',core.APP,str(revision),'-n',core.NS,'--wait','--timeout=15m'])
     core.save(directory/'rollback.json',{'configuration_restored':True,'database_restored':False,'maintenance':True,'schedules_remain_paused':True})
     complete(core)

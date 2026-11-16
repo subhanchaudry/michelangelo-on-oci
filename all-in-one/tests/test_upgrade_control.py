@@ -52,3 +52,14 @@ class UpgradeControlTests(unittest.TestCase):
    with patch.object(mod,'native_gate'),patch.object(mod,'verify_native_gate'):
     with self.assertRaisesRegex(RuntimeError,'uncontained runtime'):mod.rollback(core,checkpoint)
    self.assertEqual(self.applied[0]['data']['maintenance'],'true')
+
+ def test_rollback_only_recreates_completed_release_owned_bootstrap_jobs(self):
+  core=types.SimpleNamespace(APP='michelangelo',NS='ma-system')
+  job={'metadata':{'name':'michelangelo-temporal-schema','annotations':{'meta.helm.sh/release-name':core.APP,'meta.helm.sh/release-namespace':core.NS}},'status':{'conditions':[{'type':'Complete','status':'True'}]}}
+  with patch.object(mod,'get',return_value={'items':[job,{'metadata':{'name':'unrelated-job'}}]}):
+   self.assertEqual(mod.completed_bootstrap_jobs(core),['michelangelo-temporal-schema'])
+   job['status']['conditions']=[]
+   with self.assertRaisesRegex(RuntimeError,'has not completed'):mod.completed_bootstrap_jobs(core)
+   job['status']['conditions']=[{'type':'Complete','status':'True'}]
+   job['metadata']['annotations']['meta.helm.sh/release-name']='other-release'
+   with self.assertRaisesRegex(RuntimeError,'not owned'):mod.completed_bootstrap_jobs(core)
