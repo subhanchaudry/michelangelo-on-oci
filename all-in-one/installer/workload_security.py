@@ -235,6 +235,9 @@ def execution_profile(spec):
         return n=={'items':[{'path':'namespace','fieldRef':{'fieldPath':'metadata.namespace'}}]}
     injected={v['name'] for v in volumes if automatic_projection(v)}
     spec['volumes']=[v for v in volumes if v['name'] not in injected]
+    for volume in spec['volumes']:
+        for source in ('secret','configMap','downwardAPI','projected'):
+            if source in volume:volume[source].setdefault('defaultMode',420)
     for kind in ('containers','initContainers','ephemeralContainers'):
         spec.setdefault(kind,[])
         for container in spec[kind]:
@@ -244,6 +247,11 @@ def execution_profile(spec):
             for key in ('command','args','env','envFrom','volumeDevices','ports'):container.setdefault(key,[])
             for key,value in {'resources':{},'securityContext':{},'stdin':False,'stdinOnce':False,'tty':False,
                               'terminationMessagePath':'/dev/termination-log','terminationMessagePolicy':'File'}.items():container.setdefault(key,value)
+            for probe_name in ('startupProbe','readinessProbe','livenessProbe'):
+                if probe_name in container:
+                    probe=container[probe_name]
+                    for key,value in {'timeoutSeconds':1,'periodSeconds':10,'successThreshold':1,'failureThreshold':3}.items():
+                        probe.setdefault(key,value)
             image=container.get('image','');tag=image.rsplit('/',1)[-1]
             container.setdefault('imagePullPolicy','Always' if '@' not in image and (':' not in tag or tag.endswith(':latest')) else 'IfNotPresent')
     spec.setdefault('serviceAccountName',spec.get('serviceAccount') or 'default')

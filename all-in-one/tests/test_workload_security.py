@@ -149,6 +149,25 @@ class WorkloadSecurityTests(unittest.TestCase):
         pod['tolerations'][0]['tolerationSeconds']=3600
         self.assertNotEqual(security.execution_profile(template),security.execution_profile(pod))
 
+    def test_volume_and_probe_defaults_preserve_security_relevant_changes(self):
+        template={'containers':[{'name':'api','image':IMAGE,
+            'startupProbe':{'exec':{'command':['/bin/check']},'failureThreshold':60}}],
+            'volumes':[{'name':'config','configMap':{'name':'approved'}},
+                       {'name':'credentials','secret':{'secretName':'approved','defaultMode':256}}]}
+        actual=copy.deepcopy(template)
+        actual['volumes'][0]['configMap']['defaultMode']=420
+        actual['containers'][0]['startupProbe'].update(timeoutSeconds=1,periodSeconds=10,successThreshold=1)
+        self.assertEqual(security.execution_profile(template),security.execution_profile(actual))
+        for change in (
+            lambda p:p['volumes'][0]['configMap'].update(defaultMode=511),
+            lambda p:p['volumes'][0]['configMap'].update(name='unapproved'),
+            lambda p:p['volumes'][1]['secret'].update(defaultMode=420),
+            lambda p:p['containers'][0]['startupProbe'].update(timeoutSeconds=60),
+            lambda p:p['containers'][0]['startupProbe']['exec'].update(command=['/bin/other']),
+        ):
+            modified=copy.deepcopy(actual);change(modified)
+            self.assertNotEqual(security.execution_profile(template),security.execution_profile(modified))
+
     def test_only_standard_bounded_api_projection_is_normalized(self):
         template={'containers':[{'name':'api','image':IMAGE}]}
         pod=copy.deepcopy(template);pod['volumes']=[{'name':'kube-api-access-sample','projected':{
