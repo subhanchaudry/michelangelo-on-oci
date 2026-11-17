@@ -67,5 +67,12 @@
     "version": "1.9.2",
     "commit": "f9f92a112a4033abed5c8d43a5f7e37da257403c",
     "dependency_updates": "installer/dependencies/gateway"
+  },
+  "namespace_wait_helper": {
+    "image": "docker.io/library/alpine@sha256:0f49f331d9212aff11b932863be4eb01cdf962969aa86dab7d1ee21ac6f5f52b",
+    "alpine_version": "3.24.4",
+    "platform": "linux/amd64",
+    "purpose": "Temporal frontend readiness shell and netcat helper",
+    "package_inventory": "Alpine APK database"
   }
 }

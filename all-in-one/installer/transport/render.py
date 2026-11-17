@@ -100,9 +100,9 @@ def render(text):
             elif '.' not in first and ':' not in first and first != 'localhost':
                 container['image'] = 'docker.io/' + image
             if container['image'] in ('docker.io/library/busybox', 'docker.io/library/busybox:latest'):
-                # The namespace wait helper is untagged upstream. Bind the
-                # linux/amd64 binary exercised during OCI qualification.
-                container['image'] = 'docker.io/library/busybox@sha256:f97baa533a26513c453a362be331a43eb60214302f449c16571b23cea141dce4'
+                # Keep the namespace wait commands, using an immutable
+                # amd64 image with an auditable Alpine package inventory.
+                container['image'] = 'docker.io/library/alpine@sha256:0f49f331d9212aff11b932863be4eb01cdf962969aa86dab7d1ee21ac6f5f52b'
             if container['image'] == 'docker.io/library/busybox:1.36':
                 container['image'] += '@sha256:73aaf090f3d85aa34ee199857f03fa3a95c8ede2ffd4cc2cdb5b94e566b11662'
     return mysql_router.yaml.safe_dump_all(docs, explicit_start=True, sort_keys=False)

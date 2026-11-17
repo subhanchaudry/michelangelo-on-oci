@@ -20,6 +20,8 @@ The default topology includes one system node and two CPU workers, providing sch
 
 Optional owner notifications include external HTTPS monitoring of the OAuth2 readiness endpoint, plus alarms for failed checks and missing measurements. Application-edge monitoring complements the existing node-level load-balancer alarms.
 
+The Temporal readiness helper uses a pinned Alpine image with an explicit operating-system package inventory.
+
 Supporting components use pinned dependencies and OCI integration builds, including the MySQL setup client, Temporal and its SQL tooling, Envoy, Envoy Gateway, KubeRay, and Kyverno. See [DEPENDENCIES.json](../DEPENDENCIES.json) for component versions and source records.
 
 ## Installation and upgrades
