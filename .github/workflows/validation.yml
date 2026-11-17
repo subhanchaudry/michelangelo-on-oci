@@ -104,14 +104,14 @@ jobs:
         run: |
           mkdir -p "$RUNNER_TEMP/release-downloads"
           for profile in all-in-one terraform resource-manager; do
-            archive="$RUNNER_TEMP/release-downloads/michelangelo-$profile-0.13.0-oci.1-rc.2.zip"
+            archive="$RUNNER_TEMP/release-downloads/michelangelo-$profile-0.13.0-oci.1.zip"
             python3 -B all-in-one/scripts/package-stack.py --profile "$profile" --output "$archive"
             python3 -B all-in-one/scripts/check-publication.py --archive "$archive"
           done
           git rev-parse HEAD > "$RUNNER_TEMP/release-downloads/SOURCE-REVISION.txt"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: michelangelo-0.13.0-oci.1-rc.2-review-downloads
+          name: michelangelo-0.13.0-oci.1-review-downloads
           path: ${{ runner.temp }}/release-downloads/
           if-no-files-found: error
           retention-days: 30

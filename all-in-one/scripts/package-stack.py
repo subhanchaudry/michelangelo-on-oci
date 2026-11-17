@@ -17,7 +17,7 @@ def documentation(repository):
              'THIRD-PARTY-NOTICES.md', 'SECURITY.md', 'docs/architecture.md',
              'docs/architecture.svg', 'docs/architecture.png', 'docs/installation.md',
              'docs/operations.md', 'docs/security.md', 'docs/release-notes.md',
-             'docs/validation-0.13.0.md', 'DEPENDENCIES.json']
+             'DEPENDENCIES.json']
     files = {}
     repository = repository.resolve()
     for name in names:

@@ -18,7 +18,7 @@ Terraform pins the build host's SSH identity before sending installation credent
 
 The distribution pins upstream source, integration inputs, and build dependencies. Installation records executable image digests. Retain those records so security findings can be associated with the images actually running at your site.
 
-Review current vulnerabilities throughout the deployment lifetime. A source release does not transfer another site's acceptance, risk decisions, or operating approval. Apply updates through the documented maintenance and recovery procedures.
+Review current vulnerabilities throughout the deployment lifetime. Assess vulnerabilities against your deployed image inventory, workload exposure, and access controls. Apply updates through the documented maintenance and recovery procedures.
 
 ## Component responsibilities
 

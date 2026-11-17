@@ -1,5 +1,5 @@
 {
-  "distribution": "0.13.0-oci.1-rc.2",
+  "distribution": "0.13.0-oci.1",
   "upstream": {
     "name": "Michelangelo AI",
     "version": "v0.13.0",

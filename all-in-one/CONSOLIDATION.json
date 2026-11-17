@@ -1,5 +1,5 @@
 {
-  "release": "0.13.0-oci.1-rc.2",
+  "release": "0.13.0-oci.1",
   "upstream": "v0.13.0",
   "upstream_commit": "22f282b7641ed88af97061c66040cdc18f04347d",
   "status": "release-source",

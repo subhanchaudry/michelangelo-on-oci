@@ -2,7 +2,7 @@
 
 ![Michelangelo on OCI reference architecture](architecture.svg)
 
-This view documents the source of the all-in-one **0.13.0-oci.1-rc.2** package, using upstream Michelangelo **v0.13.0** with OCI overlays. The diagram describes the packaged deployment topology. The `terraform/` and `resource-manager/` foundation alternatives do not install these application services.
+This view documents the source of the all-in-one **0.13.0-oci.1** package, using upstream Michelangelo **v0.13.0** with OCI overlays. The diagram describes the packaged deployment topology. The `terraform/` and `resource-manager/` foundation alternatives do not install these application services.
 
 ## Read the diagram
 

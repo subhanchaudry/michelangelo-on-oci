@@ -2,7 +2,7 @@ title: Michelangelo OCI foundation
 description: New-site OCI infrastructure only. Application installation and production
   acceptance are separate.
 schemaVersion: 1.1.0
-version: 0.13.0-oci.1-rc.2
+version: 0.13.0-oci.1
 locale: en
 informationalText: Select Terraform 1.5.x. Create a Plan first; do not automatically
   Apply. This package does not adopt an existing deployment or install Michelangelo.

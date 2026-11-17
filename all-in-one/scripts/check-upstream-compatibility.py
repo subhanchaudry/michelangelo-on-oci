@@ -24,7 +24,7 @@ def git(source, *args):
 
 
 def assess(source):
-    target = json.loads((ROOT / 'docs/release-target-0.13.0.json').read_text())
+    target = json.loads((ROOT / '.github/release-history/release-target-0.13.0.json').read_text())
     revision = git(source, 'rev-parse', 'HEAD')
     if revision.returncode or revision.stdout.strip() != target['upstream_commit']:
         raise ValueError('Source HEAD does not match the pinned upstream commit')
