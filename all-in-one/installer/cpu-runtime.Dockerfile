@@ -23,7 +23,8 @@ RUN python3 -m pip install --no-cache-dir --no-deps '/wheels/'*.whl && \
 # KubeRay supplies wget health probes to every Ray container.
 RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends wget && rm -rf /var/lib/apt/lists/*
 COPY demo-source/ /app/
-ENV PYTHONPATH=/app:/app/oci_lifecycle OMP_NUM_THREADS=2 AWS_EC2_METADATA_DISABLED=true
+# Use the system resolver for private Kubernetes service names in Ray and SDK clients.
+ENV PYTHONPATH=/app:/app/oci_lifecycle OMP_NUM_THREADS=2 AWS_EC2_METADATA_DISABLED=true GRPC_DNS_RESOLVER=native
 WORKDIR /app
 USER 65534:65534
 CMD ["python3"]

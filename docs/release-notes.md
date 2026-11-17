@@ -16,6 +16,8 @@ The OCI integration now uses pinned Michelangelo v0.13.0 source. Studio communic
 
 Model serving retains upstream per-replica, model-aware readiness. The OCI CPU configuration preserves probe settings so replicas wait for their serving models to load before becoming ready. Canary deployment and rollback carry the expected artifact checksums through model delivery. Deployment workflows track the requested model revision through controller reconciliation, so an earlier rollout’s outcome cannot be reported as the result of a new deployment.
 
+CPU workflows use the system DNS resolver for private Kubernetes service names. The installer recompiles lifecycle packages when their configuration or compiler changes, preserving prior package output while applying the updated workflow environment.
+
 The default topology includes one system node and two CPU workers, providing scheduling room for lifecycle workflows alongside model serving. Upgrading from the previous single-worker default adds a CPU worker and boot volume, with corresponding charges. Configure `cpu_node_count` for your workload concurrency.
 
 Optional owner notifications include external HTTPS monitoring of the OAuth2 readiness endpoint, plus alarms for failed checks and missing measurements. Application-edge monitoring complements the existing node-level load-balancer alarms.

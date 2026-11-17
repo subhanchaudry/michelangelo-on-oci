@@ -48,7 +48,7 @@
   "scripts/assemble-upstream-release.py": "ad02f5b34dea7a15fe15d4592b6b411fbb9e88964d854db801f502506e7f81a4",
   "scripts/build-upstream-release.py": "ebeb42b9e69f7232b8985e2766e1586710564994bce3de48700839182f70ad24",
   "scripts/check-upstream-prerequisites.py": "5646389ba438124fa11f6dd776166a42918ae34993cae1e2cc4b6ec6e52b3fa7",
-  "scripts/package-upstream-lifecycle.py": "d08176012dd04ed26fc1defaa7932d680d9a80a4e5dab96239300be81a9852b5",
+  "scripts/package-upstream-lifecycle.py": "36219d156504f22c09721c83ffb6cacbbf4587b36c538b61cca21eba255e8156",
   "scripts/prepare-demo-image-context.py": "0e11bd10ca108ab49029ba8f501b0699c9f1f497a4db99d71da1b2c1e38cfd11",
   "scripts/prepare-upgrade-values.py": "45e237a5996b5ff21bef27f47e77cecc384f51bf1bcf1b55e0dbf4bf3bef8c0c",
   "scripts/verify-review-bundle.py": "d93b40ba05e348262f1125942c3f4e67d540aa7672b384feedcabe4ce5b6a0f8",
