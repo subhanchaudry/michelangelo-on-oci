@@ -565,6 +565,18 @@ def deploy(config, source, host, images):
     env = dict(os.environ, MYSQL_ROUTER_IMAGE=config['mysql_router_image'], MYSQL_ROUTER_HOST=host, MYSQL_ROUTER_PORT='3306',
                MYSQL_ROUTER_CA_SECRET='michelangelo-mysql-ca', MYSQL_ROUTER_CA_KEY='ca.pem', MYSQL_ROUTER_AUTH_SECRET='michelangelo-router-auth',
                MYSQL_ROUTER_IMAGE_RECORD=str(WORK/'support-images.json'), MYSQL_ROUTER_SOURCE_MANIFEST=str(ROOT.parent/'SOURCE-MANIFEST.json'))
+    # Existing Secrets are external to Helm. Bind their actual contents to pod
+    # templates so password/key rotation also replaces processes with old env.
+    revisions = {}
+    for name in ('michelangelo-mysql', 'michelangelo-artifacts',
+                 'michelangelo-mysql-ca', 'michelangelo-router-auth'):
+        current = json.loads(run(['kubectl', '-n', NS, 'get', 'secret', name, '-o', 'json'],
+                                 capture=True, sensitive=True))
+        if not current.get('data'):
+            raise RuntimeError('Required runtime Secret is empty: ' + name)
+        revisions[name] = hashlib.sha256(json.dumps(current['data'], sort_keys=True,
+                                                   separators=(',', ':')).encode()).hexdigest()
+    env['MA_RUNTIME_SECRET_REVISIONS'] = json.dumps(revisions, sort_keys=True)
     # Preserve checksum-verified source chart; transport is a post-render step.
     args = ['helm', 'upgrade', '--install', APP, str(source / 'helm/michelangelo'), '-n', NS,
             '-f', str(values_file), '--post-renderer', sys.executable, '--post-renderer-args', str(ROOT / 'transport/render.py'),

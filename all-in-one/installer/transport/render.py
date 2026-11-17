@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 """Apply reviewed TLS transport and normalize official Temporal chart labels."""
+import hashlib
+import json
 import os
 import re
 import sys
@@ -39,6 +41,31 @@ def publication_transcoding(text):
     return mysql_router.yaml.safe_dump(config, sort_keys=False)
 
 
+
+def bind_secret_revisions(document, revisions):
+    """Roll only Deployment templates consuming a changed external Secret."""
+    if document.get('kind') != 'Deployment':
+        return
+    template = document.get('spec', {}).get('template', {})
+    names = set()
+    def visit(node):
+        if isinstance(node, dict):
+            for key, value in node.items():
+                if key in ('secretKeyRef', 'secretRef') and isinstance(value, dict):
+                    names.add(value.get('name'))
+                elif key == 'secretName' and isinstance(value, str):
+                    names.add(value)
+                visit(value)
+        elif isinstance(node, list):
+            for value in node:
+                visit(value)
+    visit(template.get('spec', {}))
+    selected = {name: revisions[name] for name in sorted(names - {None}) if name in revisions}
+    if selected:
+        digest = hashlib.sha256(json.dumps(selected, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+        template.setdefault('metadata', {}).setdefault('annotations', {})['checksum/runtime-secrets'] = digest
+
+
 def render(text):
     # The upstream namespace setup Job includes two duplicate label names
     # via parent and Temporal helpers. Keep the Temporal schema labels.
@@ -57,6 +84,10 @@ def render(text):
         documents[index] = document
     output = mysql_router.transform('---'.join(documents), os.environ)
     docs = mysql_router.load(output)
+    revisions = json.loads(os.environ.get('MA_RUNTIME_SECRET_REVISIONS', '{}'))
+    if not isinstance(revisions, dict) or any(not isinstance(name, str) or not isinstance(value, str) or
+            not re.fullmatch(r'[0-9a-f]{64}', value) for name, value in revisions.items()):
+        raise ValueError('Invalid runtime Secret revisions')
     for document in docs:
         if document.get('kind') == 'ConfigMap':
             # Uber config expands environment references before merged YAML
@@ -105,6 +136,7 @@ def render(text):
                 container['image'] = 'docker.io/library/alpine@sha256:0f49f331d9212aff11b932863be4eb01cdf962969aa86dab7d1ee21ac6f5f52b'
             if container['image'] == 'docker.io/library/busybox:1.36':
                 container['image'] += '@sha256:73aaf090f3d85aa34ee199857f03fa3a95c8ede2ffd4cc2cdb5b94e566b11662'
+        bind_secret_revisions(document, revisions)
     return mysql_router.yaml.safe_dump_all(docs, explicit_start=True, sort_keys=False)
 
 

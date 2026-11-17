@@ -40,6 +40,8 @@ For a builder created before SSH host-key pinning, obtain its public host key th
 
 The installer enters maintenance and checks for active work before reconciling runtime resources. It preserves installer-owned pipeline and serving identities. If upgrade verification fails, it attempts to restore compatible runtime configuration; interrupted provisioning is not atomic.
 
+The installer binds external database, artifact-access, and TLS Secret revisions to the consuming application pod templates. When those credentials change, the affected deployments restart with the new values; unchanged credentials retain the same template revision. Keep credential recovery material protected and complete rotation through the installer while the site is in maintenance.
+
 Pre-existing workloads that fail template validation keep the site in maintenance. Drain and review them through authorized operator procedures. Rollback to a checkpoint predating the runtime-containment boundary is refused; use forward recovery for that case. Missing serving targets are restored by the installer, not recreated through caller-supplied connection settings.
 
 ## Cost and teardown
