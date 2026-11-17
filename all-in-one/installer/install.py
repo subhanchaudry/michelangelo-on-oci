@@ -637,6 +637,8 @@ def main():
     if args.config.stat().st_mode & 0o077:
         raise RuntimeError('Installer config must be mode 0600')
     config = json.loads(args.config.read_text())
+    import recovery_config
+    config, recovery_connections = recovery_config.load(config, WORK)
     required = ('cluster_id', 'kubernetes_version', 'region', 'mysql_host', 'mysql_username', 'mysql_password', 'registry', 'registry_username',
                 'registry_password', 'object_storage_namespace', 'artifact_bucket', 'artifact_access_key', 'artifact_secret_key',
                 'runtime_registry_username', 'runtime_registry_password', 'runtime_artifact_access_key', 'runtime_artifact_secret_key',
@@ -645,12 +647,18 @@ def main():
         raise RuntimeError('Installer config is incomplete')
     if config.get('namespace', NS) != NS:
         raise RuntimeError('Reviewed operator release requires ma-system namespace')
+    if recovery_connections:
+        # Terraform supplies base site configuration again on each apply. Keep
+        # the effective protected config aligned with the durable recovery
+        # profile for both this install and local operational tools.
+        save(args.config, config)
     python_environment()
     distribution = json.loads((ROOT / 'distribution.json').read_text())
     report = {'started': datetime.datetime.now(datetime.timezone.utc).isoformat(), 'release': distribution['release'],
               'distribution_release': distribution['release'],
               'status': 'installing', 'completed_phases': [], 'application_url': 'https://' + config['public_hostname'],
               'production_ready': False, 'interactive_login_verified': False}
+    report['recovery_connections_active'] = recovery_connections
     save(WORK / 'status.json', report)
     upgrade_checkpoint = None
     import upgrade_control

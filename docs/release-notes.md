@@ -18,6 +18,8 @@ Model serving retains upstream per-replica, model-aware readiness. The OCI CPU c
 
 CPU workflows use the system DNS resolver for private Kubernetes service names. The installer recompiles lifecycle packages when their configuration or compiler changes, preserving prior package output while applying the updated workflow environment.
 
+An operator-managed recovery connection profile retains restored database and artifact connections across subsequent installations. Recipient bindings preserve the destination's cluster and sign-in authority; invalid or unprotected profiles stop installation. See [retaining restored connections](operations.md#retaining-restored-connections) for the recovery procedure and infrastructure ownership requirements.
+
 The default topology includes one system node and two CPU workers, providing scheduling room for lifecycle workflows alongside model serving. Upgrading from the previous single-worker default adds a CPU worker and boot volume, with corresponding charges. Configure `cpu_node_count` for your workload concurrency.
 
 Optional owner notifications include external HTTPS monitoring of the OAuth2 readiness endpoint, plus alarms for failed checks and missing measurements. Application-edge monitoring complements the existing node-level load-balancer alarms.

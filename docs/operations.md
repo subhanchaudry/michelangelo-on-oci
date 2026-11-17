@@ -30,6 +30,22 @@ Before a consistent recovery checkpoint, pause submissions and schedules, drain 
 
 Preserve new writes before reverting to an older database. This distribution does not automatically migrate an existing site's history or delete its resources.
 
+### Retaining restored connections
+
+After restoring and verifying the database and artifact inventory, retain the recovered connections in `/opt/michelangelo/.runtime/recovery-connections.json` on the destination build host. The installer reads this protected profile on every installation, including when Terraform supplies the original site configuration again. It writes the effective configuration back to the protected installer configuration file. The destination keeps its cluster, OCI IAM client, registry access, network settings, and region.
+
+The profile is an operator-managed JSON object with exactly three fields:
+
+- `format`: `michelangelo-recovery-connections-v1`.
+- `recipient`: the destination's exact `cluster_id`, `region`, `object_storage_namespace`, `oidc_issuer`, and `oidc_client_id` from its protected configuration.
+- `connections`: `mysql_host`, `mysql_expected_hostname`, `mysql_ca_pem`, `mysql_username`, `mysql_password`, `artifact_bucket`, `artifact_access_key`, `artifact_secret_key`, `runtime_artifact_access_key`, and `runtime_artifact_secret_key` for the recovered data.
+
+Use the restored database's private IPv4 address, its certificate hostname, and the matching trusted CA. Preserve artifact URI names and versions. The profile must be a root-owned regular file with mode `0600`, in a directory that only root can write. Symlinks, shared hard links, incomplete profiles, and recipient mismatches stop installation. Transfer credentials through protected recovery channels; never place this file in Git, an installation archive, shell arguments, or logs.
+
+Before activation, reconcile restored resource metadata and retain the application and identity database passwords in their protected runtime files. Track the restored database and retained artifact services in the recovery environment's infrastructure state, with their retention and access policies. This profile changes application connections; it does not create resources, import Terraform ownership, replay workflow history, or establish backup consistency. Keep the original environment quiescent while verifying the restored application.
+
+Back up this profile with the destination's protected recovery material. Update it when rotating recovered connection credentials. Removing it permits the next Terraform installation to use the original connections again; treat removal as an explicit data cutover and preserve any new writes first.
+
 ## Upgrades and recovery
 
 Retain the previous package, configuration, image digests, protected state, and compatible recovery checkpoint. Start the build host before rerunning installation from the new package.
