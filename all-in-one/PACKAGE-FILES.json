@@ -82,6 +82,7 @@
   "installer/qualification_overlay.py",
   "installer/qualification_runtime.py",
   "installer/ray-runtime-smoke.py",
+  "installer/recovery_config.py",
   "installer/release/DEPENDENCIES.json",
   "installer/release/SOURCE-MANIFEST.json",
   "installer/release/deliverables/lifecycle-pilot/sample-requests/bert-cola-finetuning.json",

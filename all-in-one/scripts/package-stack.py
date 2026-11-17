@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Package explicit source inputs, preserve immutable releases, and verify the core."""
 import argparse
+import ast
 import hashlib
 import importlib.util
 import json
@@ -9,6 +10,24 @@ from pathlib import Path
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def verify_installer_imports(root, files):
+    """Reject an allowlist that omits a locally imported installer module."""
+    for name, data in files.items():
+        if not (name.startswith('installer/') and name.count('/') == 1 and name.endswith('.py')):
+            continue
+        for node in ast.walk(ast.parse(data, filename=name)):
+            if isinstance(node, ast.Import):
+                modules = [alias.name.split('.')[0] for alias in node.names]
+            elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
+                modules = [node.module.split('.')[0]]
+            else:
+                continue
+            for module in modules:
+                dependency = 'installer/' + module + '.py'
+                if (root / dependency).is_file() and dependency not in files:
+                    raise ValueError('Missing installer module in package: ' + dependency + ' (imported by ' + name + ')')
 
 
 def documentation(repository):
@@ -43,6 +62,7 @@ def payload(root=ROOT):
         if any(parent.is_symlink() for parent in path.parents if parent != root and parent.is_relative_to(root)):
             raise ValueError('Symlinked package directory: ' + name)
         files[name] = path.read_bytes()
+    verify_installer_imports(root, files)
     # The inherited verifier checks every nested payload hash, its inventory,
     # relative documentation links and the absence of inherited site acceptance.
     verifier = root / 'installer/release/scripts/verify-review-bundle.py'

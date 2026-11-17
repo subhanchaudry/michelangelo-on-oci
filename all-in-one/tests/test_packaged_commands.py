@@ -16,6 +16,43 @@ spec.loader.exec_module(package)
 
 
 class PackagedCommandsTests(unittest.TestCase):
+    def test_omitted_installer_dependency_rejected(self):
+        files = package.payload()
+        del files['installer/recovery_config.py']
+        with self.assertRaisesRegex(ValueError, 'Missing installer module.*recovery_config'):
+            package.verify_installer_imports(ROOT, files)
+
+    def test_extracted_installer_reaches_configuration_validation(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            archive = root / 'site.zip'
+            package.package(archive)
+            site = root / 'extracted'
+            with zipfile.ZipFile(archive) as stream:
+                stream.extractall(site)
+            config = site / 'config.json'
+            config.write_text('{}')
+            config.chmod(0o600)
+            # Exercise actual startup from an extracted archive, with no access
+            # to checkout imports. Empty config stops before any cloud operation.
+            command = '''import sys
+sys.path.insert(0, sys.argv[1])
+import install
+sys.argv = ['install.py', '--config', sys.argv[2]]
+try:
+    install.main()
+except RuntimeError as error:
+    assert str(error) == 'Installer config is incomplete', str(error)
+    print('configuration-validation-reached')
+else:
+    raise AssertionError('Empty configuration was accepted')
+'''
+            result = subprocess.run([sys.executable, '-I', '-B', '-c', command,
+                                     str(site / 'installer'), str(config)],
+                                    cwd=root, capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(result.stdout.strip(), 'configuration-validation-reached')
+
     def test_all_profiles_are_reproducible_and_manifest_complete(self):
         with tempfile.TemporaryDirectory() as directory:
             for profile in ('all-in-one', 'terraform', 'resource-manager'):
