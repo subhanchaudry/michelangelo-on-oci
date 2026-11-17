@@ -14,7 +14,7 @@ variableGroups:
   - title: Monitoring and notifications
     variables: [notification_email, monthly_budget_amount]
   - title: Optional capacity and compatibility overrides
-    variables: [availability_domain, kubernetes_version, oke_node_image_id, bootstrap_image_id, node_shape, node_ocpus, node_memory_gbs, node_boot_gbs, cpu_boot_gbs, bootstrap_shape, bootstrap_ocpus, bootstrap_memory_gbs, mysql_shape, mysql_username, tags]
+    variables: [availability_domain, kubernetes_version, oke_node_image_id, bootstrap_image_id, node_shape, cpu_node_count, node_ocpus, node_memory_gbs, node_boot_gbs, cpu_boot_gbs, bootstrap_shape, bootstrap_ocpus, bootstrap_memory_gbs, mysql_shape, mysql_username, tags]
 variables:
   notification_email:
     type: string
@@ -121,6 +121,7 @@ variables:
     required: false
     description: Leave empty to select Ubuntu 24.04 for the bootstrap shape.
   node_shape: {type: string, default: VM.Standard.E5.Flex}
+  cpu_node_count: {type: integer, default: 2, minimum: 2, title: CPU worker count}
   node_ocpus: {type: number, default: 2, minimum: 1}
   node_memory_gbs: {type: number, default: 16, minimum: 8}
   node_boot_gbs: {type: number, default: 200, minimum: 100}

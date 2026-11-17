@@ -35,6 +35,15 @@ variable "node_shape" {
   type    = string
   default = "VM.Standard.E5.Flex"
 }
+variable "cpu_node_count" {
+  description = "CPU workers for concurrent lifecycle workflows and model serving. Each worker also requires a boot volume."
+  type        = number
+  default     = 2
+  validation {
+    condition     = var.cpu_node_count >= 2 && floor(var.cpu_node_count) == var.cpu_node_count
+    error_message = "cpu_node_count must be a whole number of at least 2 for concurrent workflow and serving capacity."
+  }
+}
 variable "node_ocpus" {
   type    = number
   default = 2

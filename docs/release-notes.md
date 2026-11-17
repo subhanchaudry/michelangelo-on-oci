@@ -20,6 +20,12 @@ Release candidate for evaluation. Local application validation does not establis
 - Correct model finalization across the HTTP gateway and protobuf JSON serialization while retaining immutable specification and provenance enforcement.
 - Live acceptance and the complete deployed-image inventory remain required before publication.
 
+## Live-acceptance corrections
+
+- Default to two CPU workers so a lifecycle workflow and Triton model delivery have room to run concurrently. Upgrading the former default adds one worker and its boot volume.
+- Add public HTTPS checks of the existing OAuth2 readiness endpoint, with failure and missing-measurement alarms. Node-level load-balancer health alone does not establish application-edge availability.
+- These changes remain under live acceptance; they do not close the recovery, image-review, or publication gates.
+
 ## Distribution
 
 - Complete OCI deployment through local Terraform or OCI Resource Manager.

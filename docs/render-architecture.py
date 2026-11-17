@@ -94,7 +94,7 @@ edge('805,770 805,816 1200,816 1200,744 1220,744', 'Write artifacts / logs', 871
 parts.extend(labels)
 text(84, 1038, 'Solid arrows: application traffic and data', 'small')
 text(560, 1038, 'Dashed arrows: deployment and image publication', 'small')
-text(84, 1078, 'Default topology: one system node + one CPU node. GPU workloads and high availability require a separate configuration.', 'body')
+text(84, 1078, 'Default topology: one system node + two CPU workers. GPU workloads and high availability require a separate configuration.', 'body')
 text(84, 1106, 'Optional OCI alarms and owner notifications. MySQL: seven-day backups + PITR. No project-level team isolation.', 'small')
 text(84, 1134, 'Sources: all-in-one Terraform and installer • upstream v0.13.0 + OCI overlays • distribution 0.13.0-oci.1-rc.2', 'small')
 parts.append('</svg>\n')

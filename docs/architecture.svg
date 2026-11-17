@@ -123,7 +123,7 @@
 <text x="871" y="814" class="label">Write artifacts / logs</text>
 <text x="84" y="1038" class="small">Solid arrows: application traffic and data</text>
 <text x="560" y="1038" class="small">Dashed arrows: deployment and image publication</text>
-<text x="84" y="1078" class="body">Default topology: one system node + one CPU node. GPU workloads and high availability require a separate configuration.</text>
+<text x="84" y="1078" class="body">Default topology: one system node + two CPU workers. GPU workloads and high availability require a separate configuration.</text>
 <text x="84" y="1106" class="small">Optional OCI alarms and owner notifications. MySQL: seven-day backups + PITR. No project-level team isolation.</text>
 <text x="84" y="1134" class="small">Sources: all-in-one Terraform and installer • upstream v0.13.0 + OCI overlays • distribution 0.13.0-oci.1-rc.2</text>
 </svg>

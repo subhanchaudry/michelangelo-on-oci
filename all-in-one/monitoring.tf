@@ -140,3 +140,48 @@ resource "oci_budget_alert_rule" "operations" {
 output "notification_topic_id" {
   value = try(oci_ons_notification_topic.operations[0].id, null)
 }
+
+# Node-level LB checks can remain healthy when the identity edge is absent.
+# Probe the existing OAuth2 readiness route over the public TLS path as well.
+resource "oci_health_checks_http_monitor" "application_edge" {
+  count               = var.notification_email == "" ? 0 : 1
+  compartment_id      = var.compartment_id
+  display_name        = "${local.name}-application-edge"
+  interval_in_seconds = 60
+  protocol            = "HTTPS"
+  targets             = [local.public_hostname]
+  port                = 443
+  path                = "/oauth2/ready"
+  method              = "GET"
+  timeout_in_seconds  = 10
+  is_enabled          = true
+  freeform_tags       = local.tags
+  depends_on          = [null_resource.install]
+}
+
+resource "oci_monitoring_alarm" "application_edge" {
+  for_each = var.notification_email == "" ? {} : {
+    unavailable = {
+      expression = "grouping().min() < 1"
+      duration   = "PT5M"
+      body       = "Public HTTPS identity-edge readiness checks are failing. Inspect DNS, TLS, the load balancer, Caddy, and OAuth2 Proxy. This probe does not validate authenticated application workflows."
+    }
+    absent = {
+      expression = "grouping().absent()"
+      duration   = "PT10M"
+      body       = "Public HTTPS identity-edge readiness measurements are absent. Inspect the Health Checks monitor before relying on availability coverage."
+    }
+  }
+  compartment_id        = var.compartment_id
+  metric_compartment_id = var.compartment_id
+  display_name          = "${local.name}-edge-${each.key}"
+  namespace             = "oci_healthchecks"
+  query                 = "HTTP.isHealthy[1m]{resourceId = \"${oci_health_checks_http_monitor.application_edge[0].id}\"}.${each.value.expression}"
+  severity              = "CRITICAL"
+  is_enabled            = true
+  pending_duration      = each.value.duration
+  destinations          = [oci_ons_notification_topic.operations[0].id]
+  body                  = each.value.body
+  message_format        = "ONS_OPTIMIZED"
+  freeform_tags         = local.tags
+}

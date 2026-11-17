@@ -4,7 +4,7 @@
 
 ## Application baseline verification
 
-The following application results were established for rc.1. The application source patch is unchanged in rc.2; the changed installer and support-image builds require their own validation.
+The following results are the historical rc.1 baseline. Subsequent rc.2 compatibility and installer changes require their own exact-revision validation; these results must not be treated as acceptance of the current candidate.
 
 | Check | Observed result |
 | --- | --- |
@@ -31,6 +31,10 @@ The image scan result covers the four application images only. It does not cover
 The rc.1 pinned database setup and workflow images had critical/high findings in the November 16 scan. Rc.2 builds a client-only MySQL setup image, updates Envoy, and rebuilds Temporal 1.24.2 with reviewed dependency locks while retaining its server and schema versions. The namespace job uses the supported Temporal CLI. Source commits and executable image digests remain pinned.
 
 Local prototype scans have zero critical/high findings for these four replacements. The installer suite passes 110 checks with one native-admission wrapper skipped, and the 36-resource chart check passes. Full reproducible-image and live acceptance results remain pending; these observations do not close the complete runtime-image gate.
+
+## Capacity and availability corrections
+
+The live serving replay exposed insufficient CPU scheduling room on the original single-worker default. The default now has two CPU workers. A separate controlled edge outage showed that node-level load-balancer health can remain healthy while the application edge is absent, so the candidate adds external HTTPS readiness monitoring. The corrected package passes Terraform validation and the portable suite (122 passed, one native wrapper skipped). Serving replay and failure/recovery notification acceptance are still in progress. These checks do not complete the full release acceptance.
 
 ## Remaining release gates
 

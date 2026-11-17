@@ -40,6 +40,6 @@ Use **all-in-one** for a complete installation. Each path owns an independent Te
 
 [Michelangelo AI](https://github.com/michelangelo-ai/michelangelo) is Uber's open-source ML platform. This distribution pins [v0.13.0 at 22f282b](https://github.com/michelangelo-ai/michelangelo/tree/22f282b7641ed88af97061c66040cdc18f04347d); newer upstream documentation may describe different behavior. Upstream features labeled **Coming soon**, including Studio resource views, retain that status.
 
-The included configuration uses Temporal, Ray, Triton, MySQL, OCI IAM, Object Storage, and OCIR. It is a CPU deployment with one system node and one CPU node by default. High availability, project-level team isolation, GPU workloads, and migration of an existing site's history are outside this configuration. See the operating boundaries before selecting a customer deployment topology.
+The included configuration uses Temporal, Ray, Triton, MySQL, OCI IAM, Object Storage, and OCIR. It is a CPU deployment with one system node and two CPU workers by default. High availability, project-level team isolation, GPU workloads, and migration of an existing site's history are outside this configuration. See the operating boundaries before selecting a customer deployment topology.
 
 This repository supplies deployment software; it does not establish an Oracle or Uber managed-service support commitment. Upstream components and dependencies retain their respective licenses and support arrangements.

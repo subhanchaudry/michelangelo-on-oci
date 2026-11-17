@@ -29,7 +29,7 @@ resource "oci_containerengine_node_pool" "platform" {
     memory_in_gbs = var.node_memory_gbs
   }
   node_config_details {
-    size = 1
+    size = each.key == "cpu" ? var.cpu_node_count : 1
     placement_configs {
       availability_domain = local.availability_domain
       subnet_id           = oci_core_subnet.nodes.id

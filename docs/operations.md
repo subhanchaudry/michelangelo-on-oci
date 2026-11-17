@@ -18,6 +18,8 @@ For an eligible model, run batch prediction or activate a private serving target
 
 Configure the package's OCI notification destination and budget settings for the site's owner. Confirm subscription delivery before relying on alerts. Monitor application availability, failed workloads, MySQL backup status, certificate expiry, and resource consumption. Investigate both alarm firing and resolution; notification configuration alone does not prove receipt.
 
+When `notification_email` is set, the package also checks `https://<public-hostname>/oauth2/ready` every 60 seconds using OCI Health Checks. Separate alarms cover failed readiness checks and missing measurements. This tests DNS, TLS, the public edge and OAuth2 Proxy readiness; it does not prove that an authenticated Studio session, model inference, or database operation succeeds. Load-balancer backend alarms remain separate because their node-level health checks can stay healthy while the application edge is down. Validate a controlled outage, recovery, and notification receipt before launch. Health Checks adds a managed monitoring resource and may incur charges.
+
 The upstream bundled monitoring stack is disabled in this configuration. OCI monitoring does not imply that every upstream application metric is collected.
 
 ## Backups and restoration
