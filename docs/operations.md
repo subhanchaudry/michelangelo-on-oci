@@ -34,6 +34,8 @@ Preserve new writes before reverting to an older database. This distribution doe
 
 Retain the previous package, configuration, image digests, protected state, and compatible recovery checkpoint. Start the build host before rerunning installation from the new package.
 
+Keep `kubernetes_version` and `oke_node_image_id` set to the deployed values during routine application maintenance. The all-in-one release defaults to Kubernetes `v1.37.0`; earlier packages could select the newest regional version when this input was empty. Preserve an existing site's version explicitly before upgrading the package. Node images remain region-specific and are selected from the matching OKE catalog when no image is supplied. Review any cluster-version or node-image change in the plan as a separate infrastructure upgrade.
+
 For a builder created before SSH host-key pinning, obtain its public host key through authenticated OCI console access and set `bootstrap_ssh_host_key` before applying this package. For example, read `/etc/ssh/ssh_host_ed25519_key.pub` from that console. Do not establish trust using an unauthenticated SSH key scan. An absent or incorrect pin fails closed; the package does not replace an existing builder automatically. Leave this setting empty for new builders.
 
 The installer enters maintenance and checks for active work before reconciling runtime resources. It preserves installer-owned pipeline and serving identities. If upgrade verification fails, it attempts to restore compatible runtime configuration; interrupted provisioning is not atomic.

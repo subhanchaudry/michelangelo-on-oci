@@ -18,6 +18,8 @@ The default hostname uses the reserved IP with `sslip.io`. For an owned `public_
 
 Keep extracted deployment workspaces and sensitive state outside the source repository.
 
+The all-in-one package defaults to Kubernetes `v1.37.0`. It does not select a newer version when the regional OKE catalog changes. Confirm availability in your region before deploying. To use another compatible version, set `kubernetes_version` explicitly and review the matching OKE node image.
+
 ```sh
 shasum -a 256 -c michelangelo-all-in-one-0.13.0-oci.1.zip.sha256
 mkdir my-site

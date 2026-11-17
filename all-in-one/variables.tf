@@ -24,8 +24,9 @@ variable "availability_domain" {
   default = null
 }
 variable "kubernetes_version" {
-  type    = string
-  default = null
+  description = "OKE Kubernetes version. The release default is fixed; select upgrades explicitly."
+  type        = string
+  default     = "v1.37.0"
 }
 variable "oke_node_image_id" {
   type    = string

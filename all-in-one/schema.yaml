@@ -111,7 +111,8 @@ variables:
   kubernetes_version:
     type: string
     required: false
-    description: Leave empty to select the latest regionally supported Kubernetes version.
+    default: v1.37.0
+    description: Fixed release default. Select Kubernetes upgrades explicitly and confirm regional availability.
   oke_node_image_id:
     type: string
     required: false
