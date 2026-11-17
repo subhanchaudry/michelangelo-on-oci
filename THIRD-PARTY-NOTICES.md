@@ -14,6 +14,10 @@ The workflow images rebuild Temporal 1.24.2 (MIT) with dependency updates and us
 
 The installer rebuilds Caddy 2.11.9, KubeRay 1.7.2, Kyverno 1.19.2, and Envoy Gateway 1.9.2 with pinned source commits and dependency updates. These projects use Apache-2.0; original license and applicable notice files are retained in the built images. Kyverno 1.19.2 retains the legacy ClusterPolicy behavior required by this distribution.
 
+## SQLite source build
+
+The identity, artifact-delivery, and CPU workflow images build SQLite 3.54.1 from checksum-pinned upstream source. SQLite is dedicated to the public domain. The source copyright disclaimer is retained in the installed library package. Source and checksum records are included in `DEPENDENCIES.json`.
+
 ## Dependencies and images
 
 Release ZIPs contain deployment source and dependency instructions; they do not bundle upstream container-image layers or downloaded Python, Go, or operating-system packages. Installation obtains third-party software from the configured upstream sources and builds images in the customer's registry.

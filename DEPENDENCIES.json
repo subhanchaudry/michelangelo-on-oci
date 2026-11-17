@@ -74,5 +74,19 @@
     "platform": "linux/amd64",
     "purpose": "Temporal frontend readiness shell and netcat helper",
     "package_inventory": "Alpine APK database"
+  },
+  "python_runtime_sqlite": {
+    "version": "3.54.1",
+    "source": "https://sqlite.org/2026/sqlite-src-3540100.zip",
+    "source_sha256": "387e7f6cad4797b17848c07d453dc6606917bb356a6cfe5a3abafd38c240c71b",
+    "source_sha3_256": "877c6f4996ce7adb368686bce21638de9e3d91534832ad3d9d119037d1bc22ad",
+    "package_version": "3.54.1-oci1",
+    "license": "Public domain",
+    "images": [
+      "identity",
+      "delivery",
+      "examples"
+    ],
+    "build": "Canonical source with generated parser, FTS5, session and UPDATE/DELETE LIMIT support"
   }
 }

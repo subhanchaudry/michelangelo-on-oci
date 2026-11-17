@@ -85,6 +85,10 @@ def prepare_demo(source):
         'apt-get install -y --no-install-recommends libssl3t64=3.0.13-0ubuntu3.16 openssl=3.0.13-0ubuntu3.16 libbrotli1=1.1.0-2ubuntu0.1 '
         'apt=2.8.4ubuntu0.1 apt-utils=2.8.4ubuntu0.1 libapt-pkg6.0t64=2.8.4ubuntu0.1 && rm -rf /usr/local/cuda-13.4/NsightSystems-cli-2026.5.1 /var/lib/apt/lists/*\n'
         'COPY --from=serving-dependencies')
+
+    import sqlite_security
+    sqlite_security.apply(dockerfile, 'delivery')
+
     replace(dockerfile, 'FROM ${PYTHON_BASE} AS delivery\n',
         'FROM ${PYTHON_BASE} AS delivery\n'
         'RUN apt-get update && apt-get upgrade -y && rm -rf /var/lib/apt/lists/*\n')

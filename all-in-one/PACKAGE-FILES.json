@@ -146,6 +146,8 @@
   "installer/source_release.py",
   "installer/sources/v0.13.0/compatibility.patch",
   "installer/sources/v0.13.0/manifest.json",
+  "installer/sqlite-security-stage.Dockerfile",
+  "installer/sqlite_security.py",
   "installer/support_images.py",
   "installer/temporal-runtime.Dockerfile",
   "installer/test_service_auth.py",

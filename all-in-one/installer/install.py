@@ -434,6 +434,8 @@ def build(config, source, initial_values):
     images['collector'] = {'image': image, 'digest': digest, 'pinned': config['registry'] + '@' + digest,
                            'source_repository': 'https://github.com/ray-project/kuberay.git', 'source_commit': collector_commit}
     shutil.copy2(ROOT / 'cpu-runtime.Dockerfile', source / 'docker/oci-cpu-runtime.Dockerfile')
+    import sqlite_security
+    sqlite_security.apply(source / 'docker/oci-cpu-runtime.Dockerfile', 'runtime-security')
     image = config['registry'] + ':examples-cpu-' + tag
     metadata = source / 'release-build/examples-image.json'
     run(['docker', 'buildx', 'build', '--platform', 'linux/amd64', '--push', '--no-cache-filter', 'runtime-security', '-f', 'docker/oci-cpu-runtime.Dockerfile',
@@ -444,8 +446,11 @@ def build(config, source, initial_values):
     qualify_ray_runtime(images['examples']['pinned'])
     image = config['registry'] + ':identity-' + tag
     metadata = source / 'release-build/identity-image.json'
+    identity_context = source / 'release-build/identity-context'
+    shutil.copytree(ROOT / 'identity-service', identity_context, dirs_exist_ok=True)
+    sqlite_security.apply(identity_context / 'Dockerfile', 'runtime-security')
     run(['docker', 'buildx', 'build', '--platform', 'linux/amd64', '--push', '--no-cache-filter', 'runtime-security',
-         '--metadata-file', metadata, '-t', image, str(ROOT / 'identity-service')])
+         '--metadata-file', metadata, '-t', image, str(identity_context)])
     digest = json.loads(metadata.read_text())['containerimage.digest']
     images['identity'] = {'image': image, 'digest': digest, 'pinned': config['registry'] + '@' + digest}
     import image_provenance
