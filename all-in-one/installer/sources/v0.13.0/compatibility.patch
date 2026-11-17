@@ -1874,35 +1874,38 @@ index 7b3e298..05885ed 100644
 +    ],
 +)
 diff --git a/go/worker/activities/deployment/deployment_activities.go b/go/worker/activities/deployment/deployment_activities.go
-index 8c7cf93..4327084 100644
 --- a/go/worker/activities/deployment/deployment_activities.go
 +++ b/go/worker/activities/deployment/deployment_activities.go
-@@ -94,10 +94,18 @@ func (r *activities) SensorDeployment(ctx context.Context, req SensorDeploymentR
+@@ -94,8 +94,23 @@
  	// Check if deployment was updated by another workflow - fail immediately if expected revision doesn't match
  	// This error is non-retriable since retrying won't change the fact that another workflow updated the deployment
  	if req.ExpectedModelRevision != "" && desiredRev != req.ExpectedModelRevision {
 -		return nil, workflow.NewCustomError(ctx, "cadenceInternal:Generic",
 +		return nil, workflow.NewCustomError(ctx, yarpcerrors.CodeInvalidArgument.String(),
  			fmt.Sprintf("deployment was updated by another workflow: expected model revision %s, but deployment now targets %s", req.ExpectedModelRevision, desiredRev))
- 	}
- 
-+	// An update changes spec before the controller replaces the previous rollout's
-+	// terminal status. Wait for the expected revision to become current rather
-+	// than accepting that stale success. Preserve terminal failure handling.
++	}
++
++	// Spec updates are visible before the controller starts the requested rollout.
++	// Its candidate revision identifies the rollout represented by status, including
++	// terminal failures. Never return an older rollout's result for this request.
++	candidateRev := deployment.Status.GetCandidateRevision().GetName()
++	if req.ExpectedModelRevision != "" && candidateRev != req.ExpectedModelRevision {
++		return nil, workflow.NewCustomError(ctx, yarpcerrors.CodeFailedPrecondition.String(),
++			fmt.Sprintf("waiting for controller to observe expected revision %s (candidate revision: %s)", req.ExpectedModelRevision, candidateRev))
++	}
++
++	// A successful result also requires the requested model to be current.
 +	if stage == v2pb.DEPLOYMENT_STAGE_ROLLOUT_COMPLETE && req.ExpectedModelRevision != "" && currentRev != req.ExpectedModelRevision {
 +		return nil, workflow.NewCustomError(ctx, yarpcerrors.CodeFailedPrecondition.String(),
 +			fmt.Sprintf("waiting for expected revision %s to become current (current revision: %s)", req.ExpectedModelRevision, currentRev))
-+	}
-+
+ 	}
+ 
  	// Check if deployment reached terminal state (success or failure)
- 	if stage == v2pb.DEPLOYMENT_STAGE_ROLLOUT_COMPLETE ||
- 		stage == v2pb.DEPLOYMENT_STAGE_ROLLOUT_FAILED ||
 diff --git a/go/worker/activities/deployment/deployment_activities_test.go b/go/worker/activities/deployment/deployment_activities_test.go
 new file mode 100644
-index 0000000..8da8f3c
 --- /dev/null
 +++ b/go/worker/activities/deployment/deployment_activities_test.go
-@@ -0,0 +1,62 @@
+@@ -0,0 +1,71 @@
 +package deployment
 +
 +import (
@@ -1934,20 +1937,29 @@ index 0000000..8da8f3c
 +	} {
 +		t.Run(engine.name, func(t *testing.T) {
 +			for _, tc := range []struct {
-+				name, desired, current, expected string
-+				stage                            v2pb.DeploymentStage
-+				errorText                        string
++				name, desired, current, candidate, expected string
++				stage                                       v2pb.DeploymentStage
++				errorText                                   string
 +			}{
-+				{"old completed rollout", "B", "A", "B", v2pb.DEPLOYMENT_STAGE_ROLLOUT_COMPLETE, "failed-precondition"},
-+				{"no current revision", "B", "", "B", v2pb.DEPLOYMENT_STAGE_ROLLOUT_COMPLETE, "failed-precondition"},
-+				{"requested revision ready", "B", "B", "B", v2pb.DEPLOYMENT_STAGE_ROLLOUT_COMPLETE, ""},
-+				{"concurrent update", "C", "A", "B", v2pb.DEPLOYMENT_STAGE_ROLLOUT_COMPLETE, "invalid-argument"},
-+				{"failure preserved", "B", "A", "B", v2pb.DEPLOYMENT_STAGE_ROLLOUT_FAILED, ""},
-+				{"rollback terminal preserved", "B", "A", "B", v2pb.DEPLOYMENT_STAGE_ROLLBACK_COMPLETE, ""},
-+				{"legacy no expectation", "B", "A", "", v2pb.DEPLOYMENT_STAGE_ROLLOUT_COMPLETE, ""},
++				{"old completed rollout", "B", "A", "A", "B", v2pb.DEPLOYMENT_STAGE_ROLLOUT_COMPLETE, "failed-precondition"},
++				{"requested revision ready", "B", "B", "B", "B", v2pb.DEPLOYMENT_STAGE_ROLLOUT_COMPLETE, ""},
++				{"candidate ready but not current", "B", "A", "B", "B", v2pb.DEPLOYMENT_STAGE_ROLLOUT_COMPLETE, "failed-precondition"},
++				{"concurrent update", "C", "A", "B", "B", v2pb.DEPLOYMENT_STAGE_ROLLOUT_COMPLETE, "invalid-argument"},
++				{"legacy no expectation", "B", "A", "A", "", v2pb.DEPLOYMENT_STAGE_ROLLOUT_COMPLETE, ""},
++				{"stale ROLLOUT_FAILED", "B", "A", "A", "B", v2pb.DEPLOYMENT_STAGE_ROLLOUT_FAILED, "failed-precondition"},
++				{"current ROLLOUT_FAILED", "B", "A", "B", "B", v2pb.DEPLOYMENT_STAGE_ROLLOUT_FAILED, ""},
++				{"stale ROLLBACK_COMPLETE", "B", "A", "A", "B", v2pb.DEPLOYMENT_STAGE_ROLLBACK_COMPLETE, "failed-precondition"},
++				{"current ROLLBACK_COMPLETE", "B", "A", "B", "B", v2pb.DEPLOYMENT_STAGE_ROLLBACK_COMPLETE, ""},
++				{"stale ROLLBACK_FAILED", "B", "A", "A", "B", v2pb.DEPLOYMENT_STAGE_ROLLBACK_FAILED, "failed-precondition"},
++				{"current ROLLBACK_FAILED", "B", "A", "B", "B", v2pb.DEPLOYMENT_STAGE_ROLLBACK_FAILED, ""},
++				{"stale CLEAN_UP_COMPLETE", "B", "A", "A", "B", v2pb.DEPLOYMENT_STAGE_CLEAN_UP_COMPLETE, "failed-precondition"},
++				{"current CLEAN_UP_COMPLETE", "B", "A", "B", "B", v2pb.DEPLOYMENT_STAGE_CLEAN_UP_COMPLETE, ""},
++				{"stale CLEAN_UP_FAILED", "B", "A", "A", "B", v2pb.DEPLOYMENT_STAGE_CLEAN_UP_FAILED, "failed-precondition"},
++				{"current CLEAN_UP_FAILED", "B", "A", "B", "B", v2pb.DEPLOYMENT_STAGE_CLEAN_UP_FAILED, ""},
++				{"no candidate yet", "B", "", "", "B", v2pb.DEPLOYMENT_STAGE_ROLLBACK_COMPLETE, "failed-precondition"},
 +			} {
 +				t.Run(tc.name, func(t *testing.T) {
-+					d := &v2pb.Deployment{Spec: v2pb.DeploymentSpec{DesiredRevision: &api.ResourceIdentifier{Name: tc.desired}}, Status: v2pb.DeploymentStatus{Stage: tc.stage, CurrentRevision: &api.ResourceIdentifier{Name: tc.current}}}
++					d := &v2pb.Deployment{Spec: v2pb.DeploymentSpec{DesiredRevision: &api.ResourceIdentifier{Name: tc.desired}}, Status: v2pb.DeploymentStatus{Stage: tc.stage, CurrentRevision: &api.ResourceIdentifier{Name: tc.current}, CandidateRevision: &api.ResourceIdentifier{Name: tc.candidate}}}
 +					a := &activities{deploymentService: &deploymentClient{deployment: d}}
 +					s := engine.newSuite()
 +					s.RegisterActivity(a)
