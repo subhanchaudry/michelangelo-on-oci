@@ -222,7 +222,7 @@ index 1ba0acf..481b6c2 100644
          "@io_k8s_sigs_controller_runtime//pkg/client:go_default_library",
 diff --git a/go/components/inferenceserver/backends/pilot.go b/go/components/inferenceserver/backends/pilot.go
 new file mode 100644
-index 0000000..430e6e1
+index 0000000..7cdcbc1
 --- /dev/null
 +++ b/go/components/inferenceserver/backends/pilot.go
 @@ -0,0 +1,121 @@
@@ -243,7 +243,6 @@ index 0000000..430e6e1
 +	apierrors "k8s.io/apimachinery/pkg/api/errors"
 +	"k8s.io/apimachinery/pkg/api/resource"
 +	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-+	"k8s.io/apimachinery/pkg/util/intstr"
 +	"sigs.k8s.io/controller-runtime/pkg/client"
 +)
 +
@@ -286,7 +285,8 @@ index 0000000..430e6e1
 +		Requests: corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("1"), corev1.ResourceMemory: resource.MustParse("2Gi"), corev1.ResourceEphemeralStorage: resource.MustParse("2Gi")},
 +		Limits:   corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("2"), corev1.ResourceMemory: resource.MustParse("5Gi"), corev1.ResourceEphemeralStorage: resource.MustParse("6Gi")},
 +	}
-+	container.ReadinessProbe = &corev1.Probe{ProbeHandler: corev1.ProbeHandler{HTTPGet: &corev1.HTTPGetAction{Path: "/v2/health/ready", Port: intstr.FromInt32(8000)}}, PeriodSeconds: 5, TimeoutSeconds: 2, FailureThreshold: 3}
++	// Preserve the upstream probe and timing overrides. The default model-aware
++	// probe keeps restarted replicas unready until their serving models are loaded.
 +	for i := range pod.Volumes {
 +		if pod.Volumes[i].Name == "workdir" {
 +			size := resource.MustParse("4Gi")
@@ -349,10 +349,10 @@ index 0000000..430e6e1
 +}
 diff --git a/go/components/inferenceserver/backends/pilot_test.go b/go/components/inferenceserver/backends/pilot_test.go
 new file mode 100644
-index 0000000..3c65407
+index 0000000..2883c18
 --- /dev/null
 +++ b/go/components/inferenceserver/backends/pilot_test.go
-@@ -0,0 +1,87 @@
+@@ -0,0 +1,86 @@
 +package backends
 +
 +import (
@@ -379,7 +379,8 @@ index 0000000..3c65407
 +	t.Setenv("MA_MODEL_STORAGE_SECRET", "scoped-artifacts")
 +	t.Setenv("MA_MODEL_STORAGE_CONFIG", "scoped-artifacts")
 +	deployment := &appsv1.Deployment{}
-+	deployment.Spec.Template.Spec.Containers = []corev1.Container{{Name: "triton", Image: pinned}}
++	expectedReadiness := (&tritonBackend{}).defaultReadinessProbe()
++	deployment.Spec.Template.Spec.Containers = []corev1.Container{{Name: "triton", Image: pinned, ReadinessProbe: expectedReadiness.DeepCopy()}}
 +	deployment.Spec.Template.Spec.Volumes = []corev1.Volume{{Name: "workdir", VolumeSource: corev1.VolumeSource{HostPath: &corev1.HostPathVolumeSource{Path: "/bad"}}}}
 +	if err := configurePrivateCPU(deployment); err != nil {
 +		t.Fatal(err)
@@ -396,9 +397,7 @@ index 0000000..3c65407
 +	if len(pod.Containers) != 2 || len(pod.Containers[0].EnvFrom) != 0 || len(pod.Containers[1].EnvFrom) != 2 {
 +		t.Fatal("storage credentials must be delivery-only")
 +	}
-+	if pod.Containers[0].ReadinessProbe.HTTPGet.Path != "/v2/health/ready" {
-+		t.Fatal("missing Triton readiness probe")
-+	}
++	require.Equal(t, expectedReadiness, pod.Containers[0].ReadinessProbe, "private CPU configuration must preserve model-aware readiness")
 +	if pod.Containers[0].Resources.Limits.Cpu().String() != "2" {
 +		t.Fatal("CPU must be bounded")
 +	}
@@ -587,8 +586,8 @@ index 4ca9c72..c78440e 100644
  	require.NotNil(t, probe)
 -	require.NotNil(t, probe.Exec, "the default readiness probe is model-aware")
 -	assert.Equal(t, "python3", probe.Exec.Command[0])
-+	require.NotNil(t, probe.HTTPGet)
-+	assert.Equal(t, "/v2/health/ready", probe.HTTPGet.Path)
++	require.NotNil(t, probe.Exec)
++	assert.Equal(t, []string{"python3", "-c", tritonReadinessScript}, probe.Exec.Command)
  
  	// The same spec again is a no-op.
 -	_, err = backend.CreateServer(ctx, zap.NewNop(), kubeClient, tritonInferenceServer("registry/triton:1", 2))

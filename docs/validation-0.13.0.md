@@ -36,6 +36,8 @@ Local prototype scans have zero critical/high findings for these four replacemen
 
 The live serving replay exposed insufficient CPU scheduling room on the original single-worker default. The default now has two CPU workers. A separate controlled edge outage showed that node-level load-balancer health can remain healthy while the application edge is absent, so the candidate adds external HTTPS readiness monitoring. The corrected package passes Terraform validation and the portable suite (122 passed, one native wrapper skipped). Serving replay and failure/recovery notification acceptance are still in progress. These checks do not complete the full release acceptance.
 
+The effective Triton readiness check also had an OCI override to server-only HTTP readiness. A regression test reproduced the override, and the correction preserves upstream model-aware readiness and timing settings. The full inference and deployment Go suites pass, and clean source reconstruction reproduces all three changed Go files. Live restart/readiness acceptance remains required.
+
 ## Remaining release gates
 
 - Rebuild and inventory every supporting executable image and resolve applicable findings or coverage gaps.

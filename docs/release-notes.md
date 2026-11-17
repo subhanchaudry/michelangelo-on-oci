@@ -24,6 +24,7 @@ Release candidate for evaluation. Local application validation does not establis
 
 - Default to two CPU workers so a lifecycle workflow and Triton model delivery have room to run concurrently. Upgrading the former default adds one worker and its boot volume.
 - Add public HTTPS checks of the existing OAuth2 readiness endpoint, with failure and missing-measurement alarms. Node-level load-balancer health alone does not establish application-edge availability.
+- Preserve upstream model-aware Triton readiness and configured probe timings in the OCI CPU overlay, so a restarted replica remains unready until its serving models are loaded.
 - These changes remain under live acceptance; they do not close the recovery, image-review, or publication gates.
 
 ## Distribution
