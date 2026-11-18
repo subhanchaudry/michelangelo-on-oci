@@ -22,6 +22,9 @@ RUN python3 -m pip install --no-cache-dir --no-deps '/wheels/'*.whl && \
     rm -rf /wheels
 # KubeRay supplies wget health probes to every Ray container.
 RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends wget && rm -rf /var/lib/apt/lists/*
+# The runtime does not use terminal capability analysis. Remove the affected
+# infocmp utility (CVE-2025-69720), retaining ncurses libraries and other tools.
+RUN rm -f /usr/bin/infocmp && ! command -v infocmp
 COPY demo-source/ /app/
 # Use the system resolver for private Kubernetes service names in Ray and SDK clients.
 ENV PYTHONPATH=/app:/app/oci_lifecycle OMP_NUM_THREADS=2 AWS_EC2_METADATA_DISABLED=true GRPC_DNS_RESOLVER=native
