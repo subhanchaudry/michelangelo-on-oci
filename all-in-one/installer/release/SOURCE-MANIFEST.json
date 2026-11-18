@@ -41,7 +41,7 @@
   "platform/serving/lifecycle/registry.py": "78436d6d380d82d58aee944bc5260769aeb02300c79448aabd679581a9303ef1",
   "platform/serving/lifecycle/runner.py": "f5719ea0ddcb15776f35f3a40e7be4e7abbfd4801f11dd9657c6f431c570c6dc",
   "platform/serving/lifecycle/scoring.py": "a32a8c8b839ed3b738196d7069d783cd9ee8c4967c28e56b33b4daba0259f130",
-  "platform/serving/lifecycle/serving.py": "480e455db38f612765c8eecc552ada60b20a891af77dd1ac562644ed3c36a74b",
+  "platform/serving/lifecycle/serving.py": "83c5d53a470228cd1d9473bc806802c5e5dd360aa19c981152451eb67909649c",
   "platform/serving/lifecycle/storage.py": "2073ea226bb03f51b8a2e1fe5f6688952de81c2fe14838f09e96eaa6ac213e93",
   "platform/serving/lifecycle/training.py": "f7d3de21ab8824af5473de543e4a55f01cb9faa068987aa565579c03d2b0e2c8",
   "platform/serving/lifecycle/triton_model.py": "a84f2c3fca4815bc3fb5020ab1981073d0c686775f44d7ed5ee6560608be3313",

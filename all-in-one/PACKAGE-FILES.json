@@ -142,6 +142,7 @@
   "installer/router-runtime.Dockerfile",
   "installer/runtime.py",
   "installer/runtime_template.go.txt",
+  "installer/sdk_rpc_wait.py",
   "installer/seed.py",
   "installer/service_auth.py",
   "installer/source_release.py",

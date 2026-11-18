@@ -65,3 +65,7 @@ Pre-existing workloads that fail template validation keep the site in maintenanc
 After installation, stop the build host between installer runs if it is not needed. Stopped instances still retain chargeable storage. Database storage, load balancers, volumes, and other retained resources can continue to incur charges.
 
 Review a destroy plan and retention requirements before teardown. Nonempty buckets, persistent data, retained database backups, and shared IAM settings require explicit handling. Remove only resources belonging to the intended stack; do not reuse another deployment's Terraform state.
+
+## Application API connections
+
+Application SDK calls wait for a connection during a transient DNS or API connection outage, within the existing 60-second deadline or a shorter caller-supplied deadline. Serving operations retain their 30-second request deadline. Authentication and application errors remain visible; requests already delivered to the server are not automatically replayed. If the deadline expires, inspect cluster DNS and API availability before resubmitting a mutating operation.

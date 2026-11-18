@@ -37,6 +37,7 @@ def check(work, prepare_only=False):
     subprocess.run([go,'build','-tags=kubernetes_protomessage_one_more_release','./cmd/apiserver','./cmd/worker','./cmd/controllermgr'],cwd=source/'go',env=env,check=True)
     subprocess.run([sys.executable,'-B','-m','unittest','discover','-s',str(ROOT/'tests'),'-p','test_workload_security.py'],env=env,check=True)
     subprocess.run([sys.executable,'-B',str(ROOT/'installer/test_service_auth.py')],env=env,check=True)
+    subprocess.run([sys.executable,'-B',str(ROOT/'installer/test_rpc_connection_wait.py')],env=env,check=True)
     print(json.dumps({'upstream_commit':revision,'source_regressions':'passed','cloud_validation':False}))
 
 
