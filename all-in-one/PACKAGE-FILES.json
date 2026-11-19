@@ -1,6 +1,5 @@
 [
   ".terraform.lock.hcl",
-  "ACCEPTANCE-CONTRACT.json",
   "CONSOLIDATION.json",
   "PACKAGE-FILES.json",
   "auth.tf",
@@ -152,7 +151,6 @@
   "installer/sqlite_security.py",
   "installer/support_images.py",
   "installer/temporal-runtime.Dockerfile",
-  "installer/test_service_auth.py",
   "installer/tools/test_pipeline.py",
   "installer/transport/mysql_router.py",
   "installer/transport/render.py",
@@ -165,12 +163,7 @@
   "outputs.tf",
   "platform.tf",
   "schema.yaml",
-  "scripts/check-publication.py",
   "scripts/enable-public-signing-keys.py",
-  "scripts/package-stack.py",
-  "scripts/release-gate.py",
-  "scripts/resolve-runtime-locks.py",
-  "scripts/site-acceptance.py",
   "terraform.tfvars.example",
   "variables.tf",
   "versions.tf"
