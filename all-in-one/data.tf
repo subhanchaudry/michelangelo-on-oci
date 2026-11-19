@@ -28,10 +28,9 @@ locals {
   name                = "ma-${var.environment}"
   tags                = merge(var.tags, { Application = "Michelangelo", Environment = var.environment })
   availability_domain = coalesce(var.availability_domain, data.oci_identity_availability_domains.available.availability_domains[0].name)
-  # Version strings are padded numerically to avoid lexicographic 1.9 > 1.34 mistakes.
-  version_map = { for v in data.oci_containerengine_cluster_option.available.kubernetes_versions : format("%03d.%03d.%03d", tonumber(split(".", trimprefix(v, "v"))[0]), tonumber(split(".", trimprefix(v, "v"))[1]), tonumber(split(".", trimprefix(v, "v"))[2])) => v
-  }
-  kubernetes_version = coalesce(var.kubernetes_version, local.version_map[reverse(sort(keys(local.version_map)))[0]])
+  # A newer regional catalog must not turn a routine apply into a cluster upgrade.
+  # Explicit null/empty values retain the same release default as omitted input.
+  kubernetes_version = coalesce(var.kubernetes_version, "v1.37.0")
   node_images = { for image in data.oci_containerengine_node_pool_option.available.sources : image.source_name => image.image_id if image.source_type == "IMAGE" && strcontains(image.source_name, "OKE") && !strcontains(lower(image.source_name), "aarch64") && !strcontains(lower(image.source_name), "gpu") && strcontains(image.source_name, trimprefix(local.kubernetes_version, "v"))
   }
   node_image       = try(length(trimspace(var.oke_node_image_id)) > 0, false) ? var.oke_node_image_id : local.node_images[reverse(sort(keys(local.node_images)))[0]]

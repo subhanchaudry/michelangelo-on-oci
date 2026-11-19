@@ -30,11 +30,26 @@ class BrowserSessionTests(unittest.TestCase):
         self.assertTrue(store['securityContext']['readOnlyRootFilesystem'])
         self.assertFalse(store['securityContext']['allowPrivilegeEscalation'])
         self.assertFalse(pod['automountServiceAccountToken'])
+        self.assertEqual(pod['imagePullSecrets'], [{'name':'michelangelo-registry'}])
         self.assertNotIn('volumeMounts',store)
         self.assertEqual(store['resources']['limits']['memory'],'128Mi')
         self.assertEqual(deployment['spec']['replicas'], 1)
         service = next(r for r in resources if r['kind']=='Service')
         self.assertEqual({p['port'] for p in service['spec']['ports']}, {80,443})
         self.assertEqual(len([r for r in resources if r['kind']=='PersistentVolumeClaim']),1)
+
+    def test_private_edge_images_share_registry_auth_with_init_container(self):
+        config={'public_hostname':'studio.example.com','oidc_issuer':'https://identity.example.com',
+                'oidc_client_id':'test','oidc_client_secret':'test-only',
+                'authorized_emails':['test@example.com'],'acme_email':'test@example.com',
+                'reserved_public_ip':'192.0.2.1','lb_subnet_id':'ocid1.subnet.test',
+                'caddy_image':'registry.example.test/platform@sha256:'+'a'*64,
+                'oauth2_proxy_image':'registry.example.test/platform@sha256:'+'b'*64}
+        deployment=next(r for r in auth.resources(config) if r['kind']=='Deployment')
+        pod=deployment['spec']['template']['spec']
+        self.assertEqual(pod['imagePullSecrets'],[{'name':'michelangelo-registry'}])
+        self.assertEqual(pod['initContainers'][0]['image'],config['caddy_image'])
+        self.assertEqual(next(c for c in pod['containers'] if c['name']=='oauth2-proxy')['image'],config['oauth2_proxy_image'])
+        self.assertFalse(pod['automountServiceAccountToken'])
 
 if __name__=='__main__':unittest.main()

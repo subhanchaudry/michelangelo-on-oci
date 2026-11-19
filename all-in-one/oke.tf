@@ -4,6 +4,12 @@ resource "oci_containerengine_cluster" "platform" {
   type               = "BASIC_CLUSTER"
   kubernetes_version = local.kubernetes_version
   vcn_id             = oci_core_vcn.platform.id
+  lifecycle {
+    precondition {
+      condition     = contains(data.oci_containerengine_cluster_option.available.kubernetes_versions, local.kubernetes_version)
+      error_message = "The selected Kubernetes version is unavailable in this region. Select an available compatible version explicitly; the stack does not upgrade automatically."
+    }
+  }
   endpoint_config {
     is_public_ip_enabled = false
     subnet_id            = oci_core_subnet.endpoints.id
@@ -29,7 +35,7 @@ resource "oci_containerengine_node_pool" "platform" {
     memory_in_gbs = var.node_memory_gbs
   }
   node_config_details {
-    size = 1
+    size = each.key == "cpu" ? var.cpu_node_count : 1
     placement_configs {
       availability_domain = local.availability_domain
       subnet_id           = oci_core_subnet.nodes.id

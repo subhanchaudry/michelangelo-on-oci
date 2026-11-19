@@ -58,7 +58,7 @@ def register_candidate(demo, name, raw_uri, package_uri, package_checksum,
     if not eligible or not register_model:
         return {'eligible': eligible, 'evaluation_report': report_name, 'model_registered': False}
     family = ParseDict({'metadata': {'name': demo, 'namespace': namespace},
-                        'spec': {'name': demo, 'description': 'OCI internal operator pilot model family'}}, model_family_pb2.ModelFamily())
+                        'spec': {'name': demo, 'description': 'OCI model family'}}, model_family_pb2.ModelFamily())
     create_once(client.ModelFamilyService.create_model_family, client.ModelFamilyService.get_model_family, family)
     annotations = {'michelangelo.ai/package-sha256': package_checksum,
                    'michelangelo.ai/dataset-sha256': dataset_checksum,

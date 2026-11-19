@@ -45,11 +45,11 @@ def prepare_source(source):
         for name in ('go.mod','go.sum'):
             shutil.copyfile(reviewed/name, source/'go'/name)
     replace(source/'docker/service.Dockerfile',
-        'FROM gcr.io/distroless/base-debian12:latest@sha256:fabbf1c0c357a3d42550111351daed089b20a2c954df13ee2fcff60602515e84',
+        'FROM gcr.io/distroless/base-nossl-debian12:latest@sha256:e35893f8ca1cabfbd60394af94899c20930c4615355adf97c5da660a51b61bca',
         'FROM '+STATIC)
     replace(source/'docker/ui-prebuilt.Dockerfile',
         'RUN apk add --no-cache --upgrade libexpat',
-        'RUN apk add --no-cache --upgrade libexpat=2.9.0-r0 pcre2=10.49-r0 libx11=1.8.14-r0 tiff=4.7.2-r0')
+        'RUN apk add --no-cache --upgrade libexpat=2.10.0-r0 pcre2=10.49-r0 libx11=1.8.14-r0 tiff=4.7.2-r0 brotli-libs=1.2.1-r0 curl=8.23.0-r0 libcurl=8.23.0-r0 libxslt=1.1.43-r4 musl-utils=1.2.6-r3')
 
 
 def prepare_demo(source):
@@ -82,6 +82,13 @@ def prepare_demo(source):
         'COPY docker/virtualenv-requirements.lock /opt/runtime-patches/virtualenv-requirements.lock\n'
         'RUN python3 -m pip install --no-cache-dir --no-deps --require-hashes --upgrade -r /opt/runtime-patches/certifi-requirements.lock -r /opt/runtime-patches/virtualenv-requirements.lock\n'
         'RUN apt-get update && apt-get purge -y linux-libc-dev libssl-dev nsight-systems-cli-2026.5.1 && '
-        'apt-get install -y --no-install-recommends libssl3t64=3.0.13-0ubuntu3.16 openssl=3.0.13-0ubuntu3.16 && '
-        'rm -rf /usr/local/cuda-13.4/NsightSystems-cli-2026.5.1 /var/lib/apt/lists/*\n'
+        'apt-get install -y --no-install-recommends libssl3t64=3.0.13-0ubuntu3.16 openssl=3.0.13-0ubuntu3.16 libbrotli1=1.1.0-2ubuntu0.1 '
+        'apt=2.8.4ubuntu0.1 apt-utils=2.8.4ubuntu0.1 libapt-pkg6.0t64=2.8.4ubuntu0.1 && rm -rf /usr/local/cuda-13.4/NsightSystems-cli-2026.5.1 /var/lib/apt/lists/*\n'
         'COPY --from=serving-dependencies')
+
+    import sqlite_security
+    sqlite_security.apply(dockerfile, 'delivery')
+
+    replace(dockerfile, 'FROM ${PYTHON_BASE} AS delivery\n',
+        'FROM ${PYTHON_BASE} AS delivery\n'
+        'RUN apt-get update && apt-get upgrade -y && rm -rf /var/lib/apt/lists/*\n')

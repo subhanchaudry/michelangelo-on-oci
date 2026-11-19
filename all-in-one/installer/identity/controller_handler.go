@@ -49,7 +49,7 @@ func (h *localServiceHandler) serviceContext(ctx context.Context) (context.Conte
 	if !principal.Service {
 		return nil, errors.New("controller workload identity required")
 	}
-	return WithPrincipal(ctx, principal), nil
+	return WithOCIPrincipal(ctx, principal), nil
 }
 
 func (h *localServiceHandler) Create(ctx context.Context, obj client.Object, opts *metav1.CreateOptions) error {

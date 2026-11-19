@@ -23,6 +23,33 @@ def outputs(run):
                 yield sub['output']
 
 
+# Proto3 scalar/repeated defaults from v0.13.0 ModelSpec. The Go JSON
+# gateway emits them; Python MessageToDict omits them. Do not remove message
+# fields or unknown fields: their presence can carry meaning.
+MODEL_SPEC_DEFAULTS = {
+    **{name: '' for name in ('description', 'algorithm', 'trainingFramework', 'source', 'positiveLabel')},
+    **{name: [] for name in ('qualityScores', 'featureStoreFeatures', 'featureImportanceList', 'deployableArtifactUri', 'modelArtifactUri')},
+    'decisionThreshold': 0, 'revisionId': 0, 'sealed': False,
+    'kind': 'MODEL_KIND_INVALID', 'packageType': 'DEPLOYABLE_MODEL_PACKAGE_TYPE_INVALID',
+}
+
+
+def canonical_spec(spec):
+    result = dict(spec)
+    for key, default in MODEL_SPEC_DEFAULTS.items():
+        value = result.get(key)
+        same_type = type(value) is type(default) or (type(default) is int and type(value) is float)
+        if same_type and value == default:
+            result.pop(key, None)
+    return result
+
+
+def canonical_binding(binding):
+    if not isinstance(binding, dict) or not isinstance(binding.get('spec'), dict):
+        return binding
+    return {**binding, 'spec': canonical_spec(binding['spec'])}
+
+
 def candidate_binding(model):
     """Bind persisted execution evidence to this native identity and exact inputs."""
     meta = model['metadata']
@@ -31,7 +58,7 @@ def candidate_binding(model):
     annotations = {key: value for key, value in meta.get('annotations', {}).items()
                    if key.startswith(PREFIX) and not key.startswith(PREFIX+'publication-')}
     return {'uid': meta['uid'], 'namespace': meta['namespace'], 'name': meta['name'],
-            'spec': model['spec'], 'provenance': annotations}
+            'spec': canonical_spec(model['spec']), 'provenance': annotations}
 
 
 def verify_candidate(model, run, report, read):
@@ -57,7 +84,7 @@ def verify_candidate(model, run, report, read):
         raise InvalidPublication('persisted-output-missing-candidate')
     result = matching[-1]
     binding = candidate_binding(model)
-    if registration_binding(result) != binding:
+    if canonical_binding(registration_binding(result)) != binding:
         raise InvalidPublication('persisted-output-candidate-binding-mismatch')
     if result.get('source_run') != source['name']:
         raise InvalidPublication('persisted-output-source-mismatch')
@@ -102,7 +129,7 @@ def verify_candidate(model, run, report, read):
     registration = result.get('lifecycle') or result.get('registration') or {}
     if not isinstance(registration,dict) or registration.get('model_revision') != name or registration.get('model_registered') is not True:
         raise InvalidPublication('completion-log-candidate-mismatch')
-    if registration.get('candidate_binding') != binding:
+    if canonical_binding(registration.get('candidate_binding')) != binding:
         raise InvalidPublication('completion-log-candidate-binding-mismatch')
     return hashlib.sha256(json.dumps(checked, sort_keys=True).encode()).hexdigest()
 

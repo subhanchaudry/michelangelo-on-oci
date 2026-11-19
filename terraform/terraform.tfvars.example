@@ -22,7 +22,7 @@ admin_cidr               = "203.0.113.0/24"
 # Existing deployments must retain their current setting to avoid deletion.
 enable_gpu_pool = false
 gpu_node_count  = 0
-# Fresh-site baseline only; this is not the existing pilot's capacity.
+# Adjust capacity for the destination workload.
 system_node_count = 3
 cpu_node_count = 1
 cpu_node_boot_volume_size_in_gbs = 500

@@ -10,8 +10,8 @@ import (
 	"strings"
 )
 
-// Principal contains verified public identity only, never a bearer credential.
-type Principal struct {
+// OCIPrincipal contains verified public identity only, never a bearer credential.
+type OCIPrincipal struct {
 	ID       string `json:"id"`
 	DomainID string `json:"domain_id"`
 	Subject  string `json:"subject"`
@@ -23,11 +23,11 @@ type Principal struct {
 }
 type principalKey struct{}
 
-func WithPrincipal(ctx context.Context, p Principal) context.Context {
+func WithOCIPrincipal(ctx context.Context, p OCIPrincipal) context.Context {
 	return context.WithValue(ctx, principalKey{}, p)
 }
-func GetPrincipal(ctx context.Context) (Principal, bool) {
-	p, ok := ctx.Value(principalKey{}).(Principal)
+func GetPrincipal(ctx context.Context) (OCIPrincipal, bool) {
+	p, ok := ctx.Value(principalKey{}).(OCIPrincipal)
 	return p, ok && p.Enabled
 }
 

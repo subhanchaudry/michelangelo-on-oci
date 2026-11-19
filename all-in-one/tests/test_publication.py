@@ -33,6 +33,20 @@ class PublicationTests(unittest.TestCase):
  def reconcile(self):return pub.reconcile(self.model,self.call,lambda ns:self.read)
  def test_success_and_idempotent_retry(self):
   self.assertEqual(self.reconcile(),'eligible');self.assertEqual(self.reconcile(),'eligible');self.assertEqual(len(self.updates),1);self.assertEqual(self.model['metadata']['labels'][P+'eligible'],'true')
+ def test_gateway_default_fields_do_not_change_candidate_binding(self):
+  self.model['spec'].update(copy.deepcopy(pub.MODEL_SPEC_DEFAULTS))
+  # Keep the actual non-default package reference from the source registration.
+  binding=self.run['status']['steps'][0]['subSteps'][0]['output']['lifecycle']['candidate_binding']
+  self.model['spec']['deployableArtifactUri']=copy.deepcopy(binding['spec']['deployableArtifactUri'])
+  self.assertEqual(self.reconcile(),'eligible')
+ def test_unknown_or_present_message_fields_are_not_erased(self):
+  for key,value in [('unknownField',False),('outputSchema',{}),('decisionThreshold',False)]:
+   with self.subTest(key=key):
+    self.setUp();self.model['spec'][key]=value
+    self.assertEqual(self.reconcile(),'quarantined')
+ def test_changed_nondefault_scalar_does_not_reuse_binding(self):
+  self.model['spec']['revisionId']=1
+  self.assertEqual(self.reconcile(),'quarantined')
  def test_running_never_publishes(self):
   self.run['status']['state']='PIPELINE_RUN_STATE_RUNNING';self.assertEqual(self.reconcile(),'pending');self.assertFalse(self.updates)
  def test_failures_and_cancellation_quarantine(self):

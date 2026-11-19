@@ -16,7 +16,7 @@ class DependencyOverlayTests(unittest.TestCase):
         for name in ('platform','collector'):
             module=(ROOT/'installer/dependencies'/name/'go.mod').read_text()
             self.assertIn('go 1.26.10',module)
-            self.assertIn('golang.org/x/net v0.60.0',module)
+            self.assertIn('golang.org/x/net v0.62.0',module)
             self.assertIn('github.com/klauspost/compress v1.18.7',module)
 
     def test_unknown_platform_module_cannot_be_overwritten(self):
@@ -50,7 +50,7 @@ class DependencyOverlayTests(unittest.TestCase):
     def test_virtualenv_security_pin_covers_both_runtime_locations(self):
         for name in ('cpu','serving','virtualenv'):
             lock=(ROOT/'installer/dependencies'/f'{name}-requirements.lock').read_text()
-            self.assertRegex(lock, r'(?m)^virtualenv @ .*virtualenv-21\.14\.9-py3-none-any\.whl ')
+            self.assertRegex(lock, r'(?m)^virtualenv @ .*virtualenv-21\.14\.13-py3-none-any\.whl ')
         closure=(ROOT/'installer/dependencies/virtualenv-requirements.lock').read_text().splitlines()
         self.assertEqual({x.split(' @ ')[0].replace('_','-') for x in closure},
                          {'virtualenv','distlib','filelock','packaging','platformdirs','python-discovery'})
@@ -71,7 +71,7 @@ class DependencyOverlayTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             source = Path(directory); (source/'docker').mkdir()
             service = source/'docker/service.Dockerfile'
-            service.write_text('FROM gcr.io/distroless/base-debian12:latest@sha256:fabbf1c0c357a3d42550111351daed089b20a2c954df13ee2fcff60602515e84\n')
+            service.write_text('FROM gcr.io/distroless/base-nossl-debian12:latest@sha256:e35893f8ca1cabfbd60394af94899c20930c4615355adf97c5da660a51b61bca\n')
             ui = source/'docker/ui-prebuilt.Dockerfile'
             ui.write_text('RUN apk add --no-cache --upgrade libexpat\n')
             overlay.prepare_source(source)
@@ -103,6 +103,8 @@ class DependencyOverlayTests(unittest.TestCase):
             self.assertEqual(first, dockerfile.read_bytes())
             serving = dockerfile.read_text().split('FROM ${TRITON_BASE} AS triton\n')[1].split('FROM ${PYTHON_BASE} AS delivery')[0]
             self.assertIn('libssl3t64=3.0.13-0ubuntu3.16', serving)
+            self.assertIn('apt=2.8.4ubuntu0.1 apt-utils=2.8.4ubuntu0.1 libapt-pkg6.0t64=2.8.4ubuntu0.1', serving)
+            self.assertNotIn('apt-get upgrade', serving)
             self.assertIn('/usr/local/cuda-13.4/NsightSystems-cli-2026.5.1', serving)
             self.assertIn('python3 -m pip install --no-cache-dir --no-deps --require-hashes --upgrade -r /opt/runtime-patches/certifi-requirements.lock', serving)
             self.assertTrue(serving.rstrip().endswith('USER 65532:65532'))

@@ -82,50 +82,50 @@ func kubernetesIssuer(token string) bool {
 	}
 	return strings.HasPrefix(claims.Subject, "system:serviceaccount:") && claims.Issuer != "https://identity.oraclecloud.com/"
 }
-func (m *IdentityMiddleware) Authenticate(ctx context.Context, header string) (Principal, error) {
+func (m *IdentityMiddleware) Authenticate(ctx context.Context, header string) (OCIPrincipal, error) {
 	fields := strings.Fields(header)
 	if len(fields) != 2 || !strings.EqualFold(fields[0], "Bearer") || len(fields[1]) > 16384 {
-		return Principal{}, status.Error(codes.Unauthenticated, "bearer identity required")
+		return OCIPrincipal{}, status.Error(codes.Unauthenticated, "bearer identity required")
 	}
 	token := fields[1]
 	if kubernetesIssuer(token) {
 		if m.Review == nil {
-			return Principal{}, status.Error(codes.Unauthenticated, "workload verification unavailable")
+			return OCIPrincipal{}, status.Error(codes.Unauthenticated, "workload verification unavailable")
 		}
 		user, verified, e := m.Review(ctx, token)
 		if e != nil {
-			return Principal{}, status.Error(codes.Unavailable, "workload verification unavailable")
+			return OCIPrincipal{}, status.Error(codes.Unavailable, "workload verification unavailable")
 		}
 		if !verified {
-			return Principal{}, status.Error(codes.Unauthenticated, "invalid workload identity")
+			return OCIPrincipal{}, status.Error(codes.Unauthenticated, "invalid workload identity")
 		}
 		if !trustedServices[user] {
-			return Principal{}, status.Error(codes.PermissionDenied, "workload identity is not authorized")
+			return OCIPrincipal{}, status.Error(codes.PermissionDenied, "workload identity is not authorized")
 		}
-		return Principal{ID: user, Subject: user, Name: user, Role: "operator", Enabled: true, Service: true}, nil
+		return OCIPrincipal{ID: user, Subject: user, Name: user, Role: "operator", Enabled: true, Service: true}, nil
 	}
 	request, e := http.NewRequestWithContext(ctx, http.MethodPost, m.URL, nil)
 	if e != nil {
-		return Principal{}, status.Error(codes.Unavailable, "identity service unavailable")
+		return OCIPrincipal{}, status.Error(codes.Unavailable, "identity service unavailable")
 	}
 	request.Header.Set("Authorization", "Bearer "+token)
 	response, e := m.Client.Do(request)
 	if e != nil {
-		return Principal{}, status.Error(codes.Unavailable, "identity service unavailable")
+		return OCIPrincipal{}, status.Error(codes.Unavailable, "identity service unavailable")
 	}
 	defer response.Body.Close()
 	if response.StatusCode == http.StatusForbidden {
-		return Principal{}, status.Error(codes.PermissionDenied, "user is not enabled for this application")
+		return OCIPrincipal{}, status.Error(codes.PermissionDenied, "user is not enabled for this application")
 	}
 	if response.StatusCode == http.StatusUnauthorized {
-		return Principal{}, status.Error(codes.Unauthenticated, "invalid user identity")
+		return OCIPrincipal{}, status.Error(codes.Unauthenticated, "invalid user identity")
 	}
 	if response.StatusCode != http.StatusOK {
-		return Principal{}, status.Error(codes.Unavailable, "identity service unavailable")
+		return OCIPrincipal{}, status.Error(codes.Unavailable, "identity service unavailable")
 	}
-	var p Principal
+	var p OCIPrincipal
 	if json.NewDecoder(io.LimitReader(response.Body, 16384)).Decode(&p) != nil || !p.Enabled || p.ID == "" || p.Subject == "" || p.DomainID == "" || p.Email == "" || (p.Role != "admin" && p.Role != "operator") {
-		return Principal{}, status.Error(codes.PermissionDenied, "invalid application identity")
+		return OCIPrincipal{}, status.Error(codes.PermissionDenied, "invalid application identity")
 	}
 	return p, nil
 }
@@ -143,7 +143,7 @@ func (m *IdentityMiddleware) Handle(ctx context.Context, req *transport.Request,
 			}
 		}
 	}
-	return next.Handle(WithPrincipal(ctx, p), req, w)
+	return next.Handle(WithOCIPrincipal(ctx, p), req, w)
 }
 
 type ServiceTokenMiddleware struct{}

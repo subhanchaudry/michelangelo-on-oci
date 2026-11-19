@@ -44,7 +44,7 @@ def main():
         return prefix+':'+name+'-'+args.tag if args.shared_repository else prefix+'/'+name+':'+args.tag
     for name in ('apiserver','controllermgr','worker'):
         binary = output/name
-        run(['go','build','-trimpath','-o',str(binary),'./cmd/'+name],cwd=source/'go',env=env)
+        run(['go','build','-tags=kubernetes_protomessage_one_more_release','-trimpath','-o',str(binary),'./cmd/'+name],cwd=source/'go',env=env)
         image = image_name(name)
         run(['docker','buildx','build','--platform','linux/amd64','--push' if args.push else '--load','-f','docker/service.Dockerfile','--build-arg','BINARY_PATH=release-build/'+name,'--build-arg','CONFIG_PATH=go/cmd/'+name+'/config','--metadata-file',str(output/(name+'-image.json')),'-t',image,'.'])
         components[name] = {'image':image,'binary_sha256':hashlib.sha256(binary.read_bytes()).hexdigest()}

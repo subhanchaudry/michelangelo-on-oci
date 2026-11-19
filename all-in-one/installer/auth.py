@@ -18,8 +18,8 @@ from urllib.request import Request, build_opener, HTTPRedirectHandler, urlopen
 
 NAME = "ma-browser-edge"
 DEFAULT_CADDY = "docker.io/library/caddy:2.11.6-alpine@sha256:d44355d3c2149dc580ce2cac735955d1c08d3d00882c30489c241aa51a5c10d9"
-DEFAULT_PROXY = "quay.io/oauth2-proxy/oauth2-proxy:v7.15.5@sha256:8498b0d0ef0a7b29686414000a08aee467f02d0299c9ed1e006a8f33fc017916"
-DEFAULT_SESSION_STORE = "docker.io/library/redis:8.2.10-alpine@sha256:c4206b4e79e4bcc8b30679eeece996d98b27ffb1f0a15fd567338ed4d0880258"
+DEFAULT_PROXY = "quay.io/oauth2-proxy/oauth2-proxy:v7.15.6@sha256:01da265f8e371e6d3043b97829e171f3e4d53f9dc3817be15fb4fc29c92fe2a6"
+DEFAULT_SESSION_STORE = "docker.io/library/redis:8.2-alpine@sha256:a18fce2f705d9782ccf6968f8dd94fa04566ff97e10a8d322ad72645243e4c0c"
 EMAIL = re.compile(r"^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$")
 HOST = re.compile(r"^(?=.{1,253}$)[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?$")
 
@@ -233,6 +233,7 @@ PUBLIC_HOST {
         "replicas": 1, "strategy": {"type": "Recreate"}, "selector": {"matchLabels": labels},
         "template": {"metadata": {"labels": labels, "annotations": {"checksum/config": digest, "checksum/credentials": hashlib.sha256(json.dumps(secret["stringData"], sort_keys=True).encode()).hexdigest()}}, "spec": {
             "automountServiceAccountToken": False,
+            "imagePullSecrets": [{"name": "michelangelo-registry"}],
             "securityContext": {"runAsNonRoot": True, "runAsUser": 1000, "runAsGroup": 1000, "fsGroup": 1000, "seccompProfile": {"type": "RuntimeDefault"}},
             "nodeSelector": config.get("edge_node_selector", {"workload.oci.oracle.com/pool": "system"}), "containers": containers,
             # The official image binary has a privileged-port file capability.
@@ -241,7 +242,9 @@ PUBLIC_HOST {
             "initContainers": [{"name": "caddy-unprivileged-binary", "image": config.get("caddy_image", DEFAULT_CADDY),
                 "command": ["/bin/sh", "-c", "cp /usr/bin/caddy /tools/caddy && chmod 0755 /tools/caddy"],
                 "securityContext": security, "volumeMounts": [{"name": "caddy-bin", "mountPath": "/tools"}],
-                "resources": {"requests": {"cpu": "10m", "memory": "16Mi"}, "limits": {"memory": "64Mi"}}}],
+                # The rebuilt binary copy exceeded 64Mi on native Kubernetes;
+                # 256Mi passed the same restricted, disk-backed copy test.
+                "resources": {"requests": {"cpu": "10m", "memory": "64Mi"}, "limits": {"memory": "256Mi"}}}],
             "volumes": [{"name": "config", "configMap": {"name": NAME}}, {"name": "tls", "persistentVolumeClaim": {"claimName": NAME + "-tls"}}, {"name": "caddy-config", "emptyDir": {}}, {"name": "caddy-bin", "emptyDir": {}}]}}})
     annotations = {
         "oci.oraclecloud.com/load-balancer-type": "lb",

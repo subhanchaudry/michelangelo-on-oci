@@ -21,7 +21,7 @@ class NativeService:
         self.stub = getattr(importlib.import_module('michelangelo.gen.api.v2.'+field+'_svc_pb2_grpc'), kind+'ServiceStub')(self.channel)
     def call(self, action, **kwargs):
         request = getattr(self.messages, action+self.kind+'Request')(**kwargs)
-        response = getattr(self.stub, action+self.kind)(request, timeout=30, metadata=(('rpc-caller','oci-lifecycle-pilot'),('rpc-service',os.environ.get('MA_API_SERVER_NAME','ma-apiserver')),('rpc-encoding','proto')))
+        response = getattr(self.stub, action+self.kind)(request, timeout=30, wait_for_ready=True, metadata=(('rpc-caller','oci-lifecycle-pilot'),('rpc-service',os.environ.get('MA_API_SERVER_NAME','ma-apiserver')),('rpc-encoding','proto')))
         return getattr(response, self.field)
     def get(self, namespace, name): return self.call('Get', namespace=namespace, name=name)
     def create(self, value): return self.call('Create', **{self.field: ParseDict(value, self.resource())})

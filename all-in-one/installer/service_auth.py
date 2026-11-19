@@ -10,8 +10,44 @@ from pathlib import Path
 
 def prepare_source(source):
     """Read a projected, rotating token for every SDK request; retain overrides."""
+    from sdk_rpc_wait import prepare_source as prepare_rpc_calls
+    prepare_rpc_calls(source)
     path = Path(source) / 'python/michelangelo/api/v2/services/base.py'
     original = path.read_text()
+    # Queue calls during transient connection/DNS failures within the SDK's
+    # existing deadline. Do not replay requests that reached the server: a
+    # mutating RPC may have committed before returning UNAVAILABLE.
+    old_transport = '''_DEFAULT_SERVICE_CONFIG = {
+    "methodConfig": [
+        {
+            "timeout": f"{_TIMEOUT_SECONDS}s",
+            "retryPolicy": {
+                "maxAttempts": 3,
+                "initialBackoff": "0.1s",
+                "maxBackoff": "10s",
+                "backoffMultiplier": 2,
+                "retryableStatusCodes": ["INTERNAL", "UNAVAILABLE", "UNKNOWN"],
+            },
+        }
+    ]
+}'''
+    new_transport = '''_DEFAULT_SERVICE_CONFIG = {
+    "methodConfig": [
+        {
+            "name": [{}],
+            "timeout": f"{_TIMEOUT_SECONDS}s",
+            "waitForReady": True,
+        }
+    ]
+}'''
+    if old_transport in original:
+        if original.count(old_transport) != 1:
+            raise RuntimeError('SDK transport layout differs from reviewed source')
+        original = original.replace(old_transport, new_transport)
+        path.write_text(original)
+        path.chmod(0o644)
+    elif new_transport not in original:
+        raise RuntimeError('SDK transport policy differs from reviewed source')
     # Do not persist an injected token in the caller's reused request dictionary.
     # Explicit caller credentials still take precedence over the rotating file.
     old_headers = '        headers = request_headers or {}'

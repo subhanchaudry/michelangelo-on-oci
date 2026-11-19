@@ -16,6 +16,16 @@ if '--compile-training' not in sys.argv:
     import install as core
 
 
+
+def lifecycle_compiler_revision(inputs, packager, seed):
+    digest = hashlib.sha256()
+    for path in (inputs, packager, seed):
+        content = Path(path).read_bytes()
+        digest.update(len(content).to_bytes(8, 'big'))
+        digest.update(content)
+    return digest.hexdigest()
+
+
 def create_once(kind, resource):
     namespace = resource['metadata']['namespace']
     name = resource['metadata']['name']
@@ -74,7 +84,7 @@ def compiler_main():
         (package_dir / filename).write_bytes(package)
         uri = manifest['storage_url'] + '/packages/' + demo + '/' + checksum + '.tar.gz'
         env = {'UF_STORAGE_URL': manifest['storage_url'] + '/' + namespace + '/workflows',
-               'UF_TASK_IMAGE': manifest['task_image'], 'UF_PLUGIN_RAY_USE_FSSPEC': '1', 'IMAGE_PULL_POLICY': 'IfNotPresent',
+               'UF_TASK_IMAGE': manifest['task_image'], 'GRPC_DNS_RESOLVER': 'native', 'UF_PLUGIN_RAY_USE_FSSPEC': '1', 'IMAGE_PULL_POLICY': 'IfNotPresent',
                'REGISTRY_NAMESPACE': namespace, 'REGISTRY_ENDPOINT': manifest['registry_endpoint'],
                'MA_PILOT_CLUSTER_TARGET': json.dumps(manifest['cluster_target'], separators=(',', ':')),
                'MA_REGISTER_LIFECYCLE': 'true', 'HOME': '/tmp', 'HF_HOME': '/tmp/huggingface', 'XDG_CACHE_HOME': '/tmp/cache'}
@@ -111,7 +121,7 @@ def install(config, images):
         namespace, demo = model['project'], model['demo']
         target_name = demo + '-cpu'
         create_once('modelfamilys', {'apiVersion': 'michelangelo.api/v2', 'kind': 'ModelFamily',
-            'metadata': {'name': demo, 'namespace': namespace}, 'spec': {'name': demo, 'description': 'OCI internal operator pilot model family'}})
+            'metadata': {'name': demo, 'namespace': namespace}, 'spec': {'name': demo, 'description': 'OCI model family'}})
         create_once('inferenceservers', {'apiVersion': 'michelangelo.api/v2', 'kind': 'InferenceServer',
             'metadata': {'name': target_name, 'namespace': namespace, 'labels': {'michelangelo/environment': 'nonprod'}},
             'spec': {'tenancyType': 'TENANCY_TYPE_DEDICATED', 'backendType': 'BACKEND_TYPE_TRITON', 'suspended': True,
@@ -129,8 +139,10 @@ def install(config, images):
     core.save(output / 'cluster-target.json', cluster)
     core.save(output / 'compiler-input.json', {'task_image': images['examples']['pinned'], 'storage_url': storage_url,
               'registry_endpoint': 'michelangelo-apiserver.ma-system.svc.cluster.local:15566', 'cluster_target': cluster})
-    # A separate output revision prevents overwriting an earlier compiled set.
-    suffix = hashlib.sha256(images['examples']['pinned'].encode()).hexdigest()[:16]
+    # Inputs and compiler code both affect the generated workflow environment.
+    # Keep prior output immutable while recompiling changed configuration.
+    suffix = lifecycle_compiler_revision(output / 'compiler-input.json',
+        core.RELEASE / 'scripts/package-upstream-lifecycle.py', Path(__file__).resolve())[:16]
     packages = output / ('lifecycle-' + suffix)
     mount_args = ['docker', 'run', '--rm', '--user', '0', '--mount', 'type=bind,src=' + str(core.RELEASE) + ',dst=/release,readonly',
                   '--mount', 'type=bind,src=' + str(output) + ',dst=/out',

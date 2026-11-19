@@ -1,0 +1,6 @@
+{
+  "repository": "https://github.com/ray-project/kuberay.git",
+  "tag": "v1.7.2",
+  "commit": "fb5edf56ce1e2783bf3adbc4fbec97488ef208f1",
+  "purpose": "Update vulnerable Go dependencies while retaining compatible runtime APIs."
+}

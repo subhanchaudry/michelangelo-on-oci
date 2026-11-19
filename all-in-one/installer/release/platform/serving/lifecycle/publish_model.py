@@ -35,7 +35,7 @@ def original_json_training_provenance(demo, result, model):
     with response['Body'] as body:
         raw = body.read(32 * 1024**2 + 1)
     if not raw or len(raw) > 32 * 1024**2:
-        raise ValueError('Original training dataset exceeds pilot bounds')
+        raise ValueError('Original training dataset exceeds the configured size limit')
     rows = json.loads(raw)
     uri, checksum = storage.put_bytes('training-data', raw, '.json')
     split = {'ranking-mlops': 'user numeric id modulo 5 != 0',
@@ -59,7 +59,7 @@ def publish_json_training_result(demo, result):
         if not 0<response.get('ContentLength',0)<=16*1024**2:raise ValueError('Invalid JSON model size')
         raw=stream.read(16*1024**2+1)
     finally:stream.close()
-    if len(raw)>16*1024**2:raise ValueError('Model exceeds pilot bounds')
+    if len(raw)>16*1024**2:raise ValueError('Model exceeds the configured size limit')
     model=json.loads(raw)
     provenance=original_json_training_provenance(demo,result,model)
     dataset=snapshot(demo)

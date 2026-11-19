@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 """Apply reviewed TLS transport and normalize official Temporal chart labels."""
+import hashlib
+import json
 import os
 import re
 import sys
@@ -14,6 +16,54 @@ def quote_secret_placeholders(text):
     # default forces YAML to retain quotes; defined Secrets still expand exactly.
     pattern = r"(?m)^(\s*(?:password|awsAccessKeyId|awsSecretAccessKey):[ \t]*)(?:['\"])?\$\{(MYSQL_PASSWORD|AWS_ACCESS_KEY_ID|AWS_SECRET_ACCESS_KEY)(?:: )?\}(?:['\"])?[ \t]*$"
     return re.sub(pattern, lambda match: match.group(1) + "'${" + match.group(2) + ": }'", text)
+
+
+def publication_transcoding(text):
+    config = mysql_router.yaml.safe_load(text)
+    matches = []
+    def visit(node):
+        if isinstance(node, dict):
+            if node.get('@type') == 'type.googleapis.com/envoy.extensions.filters.http.grpc_json_transcoder.v3.GrpcJsonTranscoder':
+                matches.append(node)
+            for child in node.values():
+                visit(child)
+        elif isinstance(node, list):
+            for child in node:
+                visit(child)
+    visit(config)
+    if len(matches) != 1 or not matches[0].get('services'):
+        raise ValueError('Expected one explicit Envoy transcoder allowlist')
+    # The publication reconciler reads sealed evaluations over this authenticated
+    # API. Upstream derives its list from Studio imports, which omit this service.
+    service = 'michelangelo.api.v2.EvaluationReportService'
+    if service not in matches[0]['services']:
+        matches[0]['services'].append(service)
+    return mysql_router.yaml.safe_dump(config, sort_keys=False)
+
+
+
+def bind_secret_revisions(document, revisions):
+    """Roll only Deployment templates consuming a changed external Secret."""
+    if document.get('kind') != 'Deployment':
+        return
+    template = document.get('spec', {}).get('template', {})
+    names = set()
+    def visit(node):
+        if isinstance(node, dict):
+            for key, value in node.items():
+                if key in ('secretKeyRef', 'secretRef') and isinstance(value, dict):
+                    names.add(value.get('name'))
+                elif key == 'secretName' and isinstance(value, str):
+                    names.add(value)
+                visit(value)
+        elif isinstance(node, list):
+            for value in node:
+                visit(value)
+    visit(template.get('spec', {}))
+    selected = {name: revisions[name] for name in sorted(names - {None}) if name in revisions}
+    if selected:
+        digest = hashlib.sha256(json.dumps(selected, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+        template.setdefault('metadata', {}).setdefault('annotations', {})['checksum/runtime-secrets'] = digest
 
 
 def render(text):
@@ -34,6 +84,10 @@ def render(text):
         documents[index] = document
     output = mysql_router.transform('---'.join(documents), os.environ)
     docs = mysql_router.load(output)
+    revisions = json.loads(os.environ.get('MA_RUNTIME_SECRET_REVISIONS', '{}'))
+    if not isinstance(revisions, dict) or any(not isinstance(name, str) or not isinstance(value, str) or
+            not re.fullmatch(r'[0-9a-f]{64}', value) for name, value in revisions.items()):
+        raise ValueError('Invalid runtime Secret revisions')
     for document in docs:
         if document.get('kind') == 'ConfigMap':
             # Uber config expands environment references before merged YAML
@@ -41,6 +95,8 @@ def render(text):
             for key, value in document.get('data', {}).items():
                 if key.endswith('.yaml') and isinstance(value, str):
                     document['data'][key] = quote_secret_placeholders(value)
+                    if key == 'envoy.yaml':
+                        document['data'][key] = publication_transcoding(document['data'][key])
         spec = document.get('spec', {})
         pod = spec if document.get('kind') == 'Pod' else spec.get('template', {}).get('spec', {})
         if document.get('kind') == 'Deployment' and document.get('metadata', {}).get('name') == 'michelangelo-apiserver':
@@ -50,6 +106,23 @@ def render(text):
                     entries.append({'name': 'MA_IDENTITY_RESOLVE_URL',
                                     'value': 'http://ma-identity.ma-system.svc.cluster.local:8081/internal/resolve'})
                     container['env'] = entries
+        if document.get('kind') == 'Job' and document.get('metadata', {}).get('name') == 'michelangelo-temporal-namespace-setup':
+            matches = [c for c in pod.get('containers', []) if c.get('name') == 'register-namespace']
+            if len(matches) != 1:
+                raise ValueError('Unexpected Temporal namespace setup container')
+            container = matches[0]
+            pull_secret = {'name': 'michelangelo-registry'}
+            if pull_secret not in pod.setdefault('imagePullSecrets', []):
+                pod['imagePullSecrets'].append(pull_secret)
+            original = '\n'.join(container.get('command', []))
+            match = re.search(r'tctl --address ([a-zA-Z0-9.-]+:[0-9]+) --namespace ([a-zA-Z0-9._-]+) namespace describe', original)
+            if not match:
+                raise ValueError('Unexpected Temporal namespace setup command')
+            endpoint, namespace = match.groups()
+            base = 'temporal --address ' + endpoint + ' --namespace ' + namespace + ' operator namespace '
+            container['command'] = ['sh', '-ec',
+                base + 'describe >/dev/null 2>&1 || ' + base +
+                'create --retention 7d --description "Default Michelangelo namespace"']
         for container in pod.get('containers', []) + pod.get('initContainers', []):
             image = container['image']
             first = image.split('/')[0]
@@ -57,8 +130,13 @@ def render(text):
                 container['image'] = 'docker.io/library/' + image
             elif '.' not in first and ':' not in first and first != 'localhost':
                 container['image'] = 'docker.io/' + image
+            if container['image'] in ('docker.io/library/busybox', 'docker.io/library/busybox:latest'):
+                # Keep the namespace wait commands, using an immutable
+                # amd64 image with an auditable Alpine package inventory.
+                container['image'] = 'docker.io/library/alpine@sha256:0f49f331d9212aff11b932863be4eb01cdf962969aa86dab7d1ee21ac6f5f52b'
             if container['image'] == 'docker.io/library/busybox:1.36':
                 container['image'] += '@sha256:73aaf090f3d85aa34ee199857f03fa3a95c8ede2ffd4cc2cdb5b94e566b11662'
+        bind_secret_revisions(document, revisions)
     return mysql_router.yaml.safe_dump_all(docs, explicit_start=True, sort_keys=False)
 
 

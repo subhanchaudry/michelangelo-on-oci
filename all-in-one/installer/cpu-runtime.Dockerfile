@@ -2,13 +2,13 @@
 # available, but is not selected by this eight-model execution image.
 ARG PYTHON_BASE=python@sha256:2b4f19dae3a777dfc3b76730bda1e82e1f66ab2a2686fa93ca78edbfb4f04ffe
 FROM ${PYTHON_BASE} AS sdk-build
-ENV POETRY_DYNAMIC_VERSIONING_BYPASS=0.12.0 PIP_DISABLE_PIP_VERSION_CHECK=1
+ENV POETRY_DYNAMIC_VERSIONING_BYPASS=0.13.0 PIP_DISABLE_PIP_VERSION_CHECK=1
 COPY docker/builder-requirements.lock /builder-requirements.lock
 RUN python3 -m pip install --no-cache-dir --require-hashes --no-deps -r /builder-requirements.lock
 COPY python /sdk
 RUN python3 -m pip wheel --no-deps --no-build-isolation --wheel-dir /wheels /sdk
 
-FROM ${PYTHON_BASE}
+FROM ${PYTHON_BASE} AS runtime-security
 ENV PIP_DISABLE_PIP_VERSION_CHECK=1
 COPY docker/cpu-requirements.lock /requirements.lock
 RUN python3 -m pip install --no-cache-dir --require-hashes --no-deps -r /requirements.lock
@@ -21,9 +21,13 @@ RUN python3 -m pip install --no-cache-dir --no-deps '/wheels/'*.whl && \
     python3 -m pip freeze > /opt/michelangelo-runtime.lock && \
     rm -rf /wheels
 # KubeRay supplies wget health probes to every Ray container.
-RUN apt-get update && apt-get install -y --no-install-recommends wget && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends wget && rm -rf /var/lib/apt/lists/*
+# The runtime does not use terminal capability analysis. Remove the affected
+# infocmp utility (CVE-2025-69720), retaining ncurses libraries and other tools.
+RUN rm -f /usr/bin/infocmp && ! command -v infocmp
 COPY demo-source/ /app/
-ENV PYTHONPATH=/app:/app/oci_lifecycle OMP_NUM_THREADS=2 AWS_EC2_METADATA_DISABLED=true
+# Use the system resolver for private Kubernetes service names in Ray and SDK clients.
+ENV PYTHONPATH=/app:/app/oci_lifecycle OMP_NUM_THREADS=2 AWS_EC2_METADATA_DISABLED=true GRPC_DNS_RESOLVER=native
 WORKDIR /app
 USER 65534:65534
 CMD ["python3"]

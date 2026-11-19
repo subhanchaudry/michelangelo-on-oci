@@ -18,7 +18,7 @@ def prepare_source(source):
         target = source / "go/auth" / path.name
         target.write_bytes(path.read_bytes())
     main = source / "go/cmd/apiserver/main.go"
-    replace(main, "auth.DummyAuthModule", "auth.PrincipalAuthModule")
+    replace(main, "auth.AuthModule", "auth.PrincipalAuthModule")
     dispatcher = source / "go/cmd/apiserver/yarpc.go"
     replace(dispatcher, '"context"\n', '"context"\n\t"github.com/michelangelo-ai/michelangelo/go/auth"\n', '"github.com/michelangelo-ai/michelangelo/go/auth"')
     replace(dispatcher, "\t\tName: serverName,", "\t\tName: serverName,\n\t\tInboundMiddleware: yarpc.InboundMiddleware{Unary: auth.NewIdentityMiddleware()},", 'auth.NewIdentityMiddleware()')
@@ -33,7 +33,6 @@ def prepare_source(source):
     if err := handler.Get(ctx, obj.GetNamespace(), obj.GetName(), &metav1.GetOptions{}, original); err != nil { return err }
     auth.PreserveOwner(obj, original)
     if err := auth.StampIdentity(ctx, obj, false); err != nil { return err }''', 'auth.PreserveOwner(obj, original)')
-    replace(handler, 'logger.Info(fmt.Sprintf("API %s took %d milli seconds", action, took.Milliseconds()), "headers", headers)', 'logger.Info(fmt.Sprintf("API %s took %d milli seconds", action, took.Milliseconds()))')
     replace(handler, 'initLog := log.WithValues("action", action, "namespace", namespace, "name", name, "kind", kind)', '''initLog := log.WithValues("action", action, "namespace", namespace, "name", name, "kind", kind)
     if principal, verified := auth.GetPrincipal(ctx); verified {
         initLog = initLog.WithValues("actorID", principal.ID, "actorSubject", principal.Subject, "actorEmail", principal.Email, "actorService", principal.Service)

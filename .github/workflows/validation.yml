@@ -1,4 +1,4 @@
-name: Candidate validation
+name: Release validation
 on:
   pull_request:
   push:
@@ -19,13 +19,20 @@ jobs:
   source:
     runs-on: ubuntu-latest
     timeout-minutes: 40
+    env:
+      GOMAXPROCS: '2'
+      GOFLAGS: '-p=2'
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: '3.12'
-      - run: python -m pip install PyYAML==6.0.3
+      - run: python -m pip install PyYAML==6.0.3 grpcio==1.84.0
       - run: python -B all-in-one/scripts/check-source.py --work-dir "$RUNNER_TEMP/ma-source"
+      - uses: azure/setup-helm@b9e51907a09c216f16ebe8536097933489208112 # v4.3.0
+        with:
+          version: v3.19.0
+      - run: python -B all-in-one/scripts/check-chart.py --source "$RUNNER_TEMP/ma-source/source"
   terraform:
     runs-on: ubuntu-latest
     strategy:
@@ -49,6 +56,31 @@ jobs:
         working-directory: ${{ runner.temp }}/ma-profile
       - run: terraform validate
         working-directory: ${{ runner.temp }}/ma-profile
+  ui:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      GOMAXPROCS: '2'
+      GOFLAGS: '-p=2'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '24.18.0'
+      - run: python3 -B all-in-one/scripts/check-source.py --prepare-only --work-dir "$RUNNER_TEMP/ma-ui"
+      - name: Install pinned generation tools
+        run: |
+          npm install --global yarn@1.22.22
+          go install github.com/bufbuild/buf/cmd/buf@v1.57.2
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+      - name: Validate and build Studio
+        working-directory: ${{ runner.temp }}/ma-ui/source/javascript
+        run: |
+          yarn install --frozen-lockfile
+          yarn generate
+          yarn typecheck
+          yarn test
+          yarn workspaces run build
   secrets:
     runs-on: ubuntu-latest
     permissions:
@@ -63,3 +95,23 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           GITLEAKS_VERSION: '8.30.1'
           GITLEAKS_ENABLE_COMMENTS: 'false'
+  packages:
+    needs: [portable, source, terraform, secrets, ui]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Build review downloads
+        run: |
+          mkdir -p "$RUNNER_TEMP/release-downloads"
+          for profile in all-in-one terraform resource-manager; do
+            archive="$RUNNER_TEMP/release-downloads/michelangelo-$profile-0.13.0-oci.1.zip"
+            python3 -B all-in-one/scripts/package-stack.py --profile "$profile" --output "$archive"
+            python3 -B all-in-one/scripts/check-publication.py --archive "$archive"
+          done
+          git rev-parse HEAD > "$RUNNER_TEMP/release-downloads/SOURCE-REVISION.txt"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: michelangelo-0.13.0-oci.1-review-downloads
+          path: ${{ runner.temp }}/release-downloads/
+          if-no-files-found: error
+          retention-days: 30

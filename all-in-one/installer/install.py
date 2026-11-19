@@ -32,8 +32,8 @@ WORK = ROOT.parent / '.runtime'
 RELEASE = ROOT / 'release'
 NS = 'ma-system'
 APP = 'michelangelo'
-UPSTREAM = 'ed2a2b09ed9fab57e1479f45e84330a78f3ff8d3'
-ROUTER_IMAGE = 'container-registry.oracle.com/mysql/community-router:8.4.10@sha256:d704471c2bb78fa833790dc197959c004d09af5aa18f5f153ff40e7268f54043'
+UPSTREAM = '22f282b7641ed88af97061c66040cdc18f04347d'
+ROUTER_IMAGE = 'container-registry.oracle.com/mysql/community-router:26.10.0@sha256:3de30bd493403d2cc87f0a1070686911ded03e473161c4c235bddfe03dfc0d3b'
 MYSQL_IMAGE = 'docker.io/library/mysql:8.0@sha256:7dcddc01f13bab2f15cde676d44d01f61fc9f99fe7785e86196dfc07d358ae2b'
 ENVOY_IMAGE = 'docker.io/envoyproxy/envoy:v1.29-latest@sha256:5a292b91adc87aa56146fb9ee52fc85c30570d0f175d95b48cde8035a2e641dd'
 TEMPORAL_IMAGE = 'docker.io/temporalio/server:1.24.2@sha256:16de74d893e813053b82551eb4463c795b368d2029520b4c8fe2e47e1c336bb9'
@@ -338,12 +338,12 @@ def values(config, host, images=None):
             'database': db, 'user': 'michelangelo_app', 'password': '', 'existingSecret': 'michelangelo-mysql',
             'maxConns': 5, 'tls': {'enabled': True, 'caFile': '/mysql-ca/ca.pem', 'serverName': host, 'enableHostVerification': True}}}
     return {'fullnameOverride': APP, 'metadataStorage': {'driver': 'mysql', 'host': '127.0.0.1', 'port': 6446,
-            'database': 'michelangelo', 'user': 'michelangelo_app', 'existingSecret': 'michelangelo-mysql', 'initImage': MYSQL_IMAGE},
+            'database': 'michelangelo', 'user': 'michelangelo_app', 'existingSecret': 'michelangelo-mysql', 'initImage': config.get('mysql_client_image', MYSQL_IMAGE)},
         'objectStorage': {'endpoint': endpoint, 'secure': True, 'region': config['region'], 'bucket': config['artifact_bucket'], 'existingSecret': 'michelangelo-artifacts'},
         'workflow': {'engine': 'temporal', 'endpoint': APP + '-temporal-frontend:7233', 'domain': 'default'},
         'cadence': {'enabled': False}, 'imagePullSecrets': [{'name': 'michelangelo-registry'}],
         'images': {**{name: {'repository': images.get(name, {}).get('pinned', config['registry'] + ':' + name + '-0.11.0-operator.3'), 'tag': ''}
-                      for name in ('apiserver', 'controllermgr', 'worker', 'ui')}, 'envoy': ENVOY_IMAGE,
+                      for name in ('apiserver', 'controllermgr', 'worker', 'ui')}, 'envoy': config.get('envoy_image', ENVOY_IMAGE),
                    'kuberayCollector': images.get('collector', {}).get('pinned', 'ghcr.io/michelangelo-ai/kuberay-collector:v1.5.0')},
         'podSecurityContext': {'runAsNonRoot': True, 'runAsUser': 65534, 'fsGroup': 65534, 'seccompProfile': {'type': 'RuntimeDefault'}},
         'apiserver': {'service': {'type': 'ClusterIP'}, 'ingress': {'enabled': False}, 'metadataStorage': {'enable': True}, 'crdSync': {'enableUpdate': True}},
@@ -355,13 +355,14 @@ def values(config, host, images=None):
         'inferenceServer': {'triton': {'defaultImage': images.get('triton', {}).get('pinned', '')},
             'gateway': {'name': 'ma-gateway', 'serviceName': 'ma-gateway', 'serviceNamespace': 'envoy-gateway-system', 'portName': 'http-8080'}},
         'temporal': {'enabled': True, 'fullnameOverride': APP + '-temporal',
-            'server': {'image': {'repository': TEMPORAL_IMAGE.split(':1.24')[0], 'tag': '1.24.2@' + TEMPORAL_IMAGE.split('@')[1]},
+            'imagePullSecrets': [{'name': 'michelangelo-registry'}],
+            'server': {'image': {'repository': config.get('temporal_server_image', TEMPORAL_IMAGE).split(':', 1)[0], 'tag': config.get('temporal_server_image', TEMPORAL_IMAGE).split(':', 1)[1]},
                 'replicaCount': 1, 'resources': {'requests': {'cpu': '100m', 'memory': '256Mi'}, 'limits': {'memory': '512Mi'}},
                 'config': {'numHistoryShards': 16, 'persistence': stores},
                 'additionalVolumes': [{'name': 'mysql-ca', 'secret': {'secretName': 'michelangelo-mysql-ca'}}],
                 'additionalVolumeMounts': [{'name': 'mysql-ca', 'mountPath': '/mysql-ca', 'readOnly': True}]},
             'schema': {'createDatabase': {'enabled': False}, 'setup': {'enabled': True}, 'update': {'enabled': True}},
-            'admintools': {'enabled': False, 'image': {'repository': 'docker.io/temporalio/admin-tools', 'tag': TEMPORAL_ADMIN.split(':', 1)[1]}},
+            'admintools': {'enabled': False, 'image': {'repository': config.get('temporal_admin_image', TEMPORAL_ADMIN).split(':', 1)[0], 'tag': config.get('temporal_admin_image', TEMPORAL_ADMIN).split(':', 1)[1]}},
             'web': {'enabled': False}, 'cassandra': {'enabled': False}, 'mysql': {'enabled': False}, 'postgresql': {'enabled': False},
             'elasticsearch': {'enabled': False}, 'prometheus': {'enabled': False}, 'grafana': {'enabled': False}},
         'monitoring': {'enabled': False}}
@@ -411,7 +412,7 @@ def build(config, source, initial_values):
     for target in ('delivery', 'triton'):
         image = config['registry'] + ':' + target + '-' + tag
         metadata = source / ('release-build/' + target + '-image.json')
-        run(['docker', 'buildx', 'build', '--platform', 'linux/amd64', '--push', '--target', target,
+        run(['docker', 'buildx', 'build', '--platform', 'linux/amd64', '--push', '--target', target, '--no-cache-filter', target,
              '-f', 'docker/support-runtime.Dockerfile', '--metadata-file', metadata, '-t', image, '.'], cwd=source)
         digest = json.loads(metadata.read_text())['containerimage.digest']
         images[target] = {'image': image, 'digest': digest, 'pinned': config['registry'] + '@' + digest}
@@ -433,9 +434,11 @@ def build(config, source, initial_values):
     images['collector'] = {'image': image, 'digest': digest, 'pinned': config['registry'] + '@' + digest,
                            'source_repository': 'https://github.com/ray-project/kuberay.git', 'source_commit': collector_commit}
     shutil.copy2(ROOT / 'cpu-runtime.Dockerfile', source / 'docker/oci-cpu-runtime.Dockerfile')
+    import sqlite_security
+    sqlite_security.apply(source / 'docker/oci-cpu-runtime.Dockerfile', 'runtime-security')
     image = config['registry'] + ':examples-cpu-' + tag
     metadata = source / 'release-build/examples-image.json'
-    run(['docker', 'buildx', 'build', '--platform', 'linux/amd64', '--push', '-f', 'docker/oci-cpu-runtime.Dockerfile',
+    run(['docker', 'buildx', 'build', '--platform', 'linux/amd64', '--push', '--no-cache-filter', 'runtime-security', '-f', 'docker/oci-cpu-runtime.Dockerfile',
          '--metadata-file', metadata, '-t', image, '.'], cwd=source)
     digest = json.loads(metadata.read_text())['containerimage.digest']
     images['examples'] = {'image': image, 'digest': digest, 'pinned': config['registry'] + '@' + digest,
@@ -443,8 +446,11 @@ def build(config, source, initial_values):
     qualify_ray_runtime(images['examples']['pinned'])
     image = config['registry'] + ':identity-' + tag
     metadata = source / 'release-build/identity-image.json'
-    run(['docker', 'buildx', 'build', '--platform', 'linux/amd64', '--push',
-         '--metadata-file', metadata, '-t', image, str(ROOT / 'identity-service')])
+    identity_context = source / 'release-build/identity-context'
+    shutil.copytree(ROOT / 'identity-service', identity_context, dirs_exist_ok=True)
+    sqlite_security.apply(identity_context / 'Dockerfile', 'runtime-security')
+    run(['docker', 'buildx', 'build', '--platform', 'linux/amd64', '--push', '--no-cache-filter', 'runtime-security',
+         '--metadata-file', metadata, '-t', image, str(identity_context)])
     digest = json.loads(metadata.read_text())['containerimage.digest']
     images['identity'] = {'image': image, 'digest': digest, 'pinned': config['registry'] + '@' + digest}
     import image_provenance
@@ -455,6 +461,8 @@ def build(config, source, initial_values):
     save(WORK / 'images.json', images)
     import support_images
     support_images.build(sys.modules[__name__], config, tag, manifest_sha256)
+    import release_support_images
+    release_support_images.build(sys.modules[__name__], config, tag, manifest_sha256)
     return images
 
 
@@ -510,14 +518,16 @@ def qualify_ray_runtime(image):
 
 
 def prerequisites(config, images):
+    import operator_images
+    operator_images.prepare(sys.modules[__name__], config)
     run(['helm', 'repo', 'add', 'kuberay', 'https://ray-project.github.io/kuberay-helm/'])
     run(['helm', 'repo', 'add', 'kyverno', 'https://kyverno.github.io/kyverno/'])
     run(['helm', 'repo', 'update'])
-    run(['helm', 'upgrade', '--install', 'kuberay', 'kuberay/kuberay-operator', '--version', '1.5.0',
+    run(['helm', 'upgrade', '--install', 'kuberay', 'kuberay/kuberay-operator', '--version', '1.7.2', '-f', WORK / 'kuberay-values.json',
          '-n', 'kuberay-system', '--create-namespace', '--wait', '--timeout', '10m'])
     run(['helm', 'upgrade', '--install', 'envoy-gateway', 'oci://docker.io/envoyproxy/gateway-helm',
-         '--version', 'v1.9.2', '-n', 'envoy-gateway-system', '--create-namespace', '--wait', '--timeout', '10m'])
-    run(['helm', 'upgrade', '--install', 'kyverno', 'kyverno/kyverno', '--version', '3.5.2',
+         '--version', 'v1.9.2', '-f', WORK / 'gateway-values.json', '-n', 'envoy-gateway-system', '--create-namespace', '--wait', '--timeout', '10m'])
+    run(['helm', 'upgrade', '--install', 'kyverno', 'kyverno/kyverno', '--version', '3.9.2', '-f', WORK / 'kyverno-values.json',
          '-n', 'kyverno', '--create-namespace', '--wait', '--timeout', '10m',
          '--set', 'admissionController.replicas=1', '--set', 'backgroundController.replicas=1',
          '--set', 'cleanupController.replicas=1', '--set', 'reportsController.replicas=1'])
@@ -536,13 +546,16 @@ def prerequisites(config, images):
     apply({'apiVersion': 'gateway.networking.k8s.io/v1', 'kind': 'GatewayClass', 'metadata': {'name': 'ma-gateway'},
            'spec': {'controllerName': 'gateway.envoyproxy.io/gatewayclass-controller'}})
     apply({'apiVersion': 'gateway.envoyproxy.io/v1alpha1', 'kind': 'EnvoyProxy', 'metadata': {'name': 'ma-private-proxy', 'namespace': 'ma-gateway'},
-           'spec': {'provider': {'type': 'Kubernetes', 'kubernetes': {'envoyService': {'type': 'ClusterIP', 'name': 'ma-gateway'}}}}})
+           'spec': {'provider': {'type': 'Kubernetes', 'kubernetes': {'envoyService': {'type': 'ClusterIP', 'name': 'ma-gateway'},
+                'envoyDeployment': {'pod': {'imagePullSecrets': [{'name': 'michelangelo-registry'}]}}}}}})
     apply({'apiVersion': 'gateway.networking.k8s.io/v1', 'kind': 'Gateway', 'metadata': {'name': 'ma-gateway', 'namespace': 'ma-gateway'},
            'spec': {'gatewayClassName': 'ma-gateway', 'infrastructure': {'parametersRef': {'group': 'gateway.envoyproxy.io', 'kind': 'EnvoyProxy', 'name': 'ma-private-proxy'}},
                     'listeners': [{'name': 'http', 'protocol': 'HTTP', 'port': 8080, 'allowedRoutes': {'namespaces': {'from': 'All'}}}]}})
 
 
 def deploy(config, source, host, images):
+    if not all(config.get(name + '_image') for name in ('mysql_client', 'envoy', 'temporal_server', 'temporal_admin')):
+        raise RuntimeError('Reviewed support image builds are required before deployment')
     import yaml
     import runtime
     # nginx resolves the protected log upstream when it starts; create its
@@ -552,10 +565,22 @@ def deploy(config, source, host, images):
     env = dict(os.environ, MYSQL_ROUTER_IMAGE=config['mysql_router_image'], MYSQL_ROUTER_HOST=host, MYSQL_ROUTER_PORT='3306',
                MYSQL_ROUTER_CA_SECRET='michelangelo-mysql-ca', MYSQL_ROUTER_CA_KEY='ca.pem', MYSQL_ROUTER_AUTH_SECRET='michelangelo-router-auth',
                MYSQL_ROUTER_IMAGE_RECORD=str(WORK/'support-images.json'), MYSQL_ROUTER_SOURCE_MANIFEST=str(ROOT.parent/'SOURCE-MANIFEST.json'))
+    # Existing Secrets are external to Helm. Bind their actual contents to pod
+    # templates so password/key rotation also replaces processes with old env.
+    revisions = {}
+    for name in ('michelangelo-mysql', 'michelangelo-artifacts',
+                 'michelangelo-mysql-ca', 'michelangelo-router-auth'):
+        current = json.loads(run(['kubectl', '-n', NS, 'get', 'secret', name, '-o', 'json'],
+                                 capture=True, sensitive=True))
+        if not current.get('data'):
+            raise RuntimeError('Required runtime Secret is empty: ' + name)
+        revisions[name] = hashlib.sha256(json.dumps(current['data'], sort_keys=True,
+                                                   separators=(',', ':')).encode()).hexdigest()
+    env['MA_RUNTIME_SECRET_REVISIONS'] = json.dumps(revisions, sort_keys=True)
     # Preserve checksum-verified source chart; transport is a post-render step.
     args = ['helm', 'upgrade', '--install', APP, str(source / 'helm/michelangelo'), '-n', NS,
             '-f', str(values_file), '--post-renderer', sys.executable, '--post-renderer-args', str(ROOT / 'transport/render.py'),
-            '--wait', '--timeout', '25m']
+            '--wait', '--wait-for-jobs', '--timeout', '25m']
     run(['kubectl', '-n', NS, 'delete', 'job', APP + '-temporal-schema', APP + '-temporal-namespace-setup', '--ignore-not-found'], sensitive=True)
     run(args, env=env, sensitive=True)
     for component in ('apiserver', 'controllermgr', 'worker', 'ui', 'envoy', 'temporal-frontend', 'temporal-history', 'temporal-matching', 'temporal-worker'):
@@ -612,6 +637,8 @@ def main():
     if args.config.stat().st_mode & 0o077:
         raise RuntimeError('Installer config must be mode 0600')
     config = json.loads(args.config.read_text())
+    import recovery_config
+    config, recovery_connections = recovery_config.load(config, WORK)
     required = ('cluster_id', 'kubernetes_version', 'region', 'mysql_host', 'mysql_username', 'mysql_password', 'registry', 'registry_username',
                 'registry_password', 'object_storage_namespace', 'artifact_bucket', 'artifact_access_key', 'artifact_secret_key',
                 'runtime_registry_username', 'runtime_registry_password', 'runtime_artifact_access_key', 'runtime_artifact_secret_key',
@@ -620,12 +647,18 @@ def main():
         raise RuntimeError('Installer config is incomplete')
     if config.get('namespace', NS) != NS:
         raise RuntimeError('Reviewed operator release requires ma-system namespace')
+    if recovery_connections:
+        # Terraform supplies base site configuration again on each apply. Keep
+        # the effective protected config aligned with the durable recovery
+        # profile for both this install and local operational tools.
+        save(args.config, config)
     python_environment()
     distribution = json.loads((ROOT / 'distribution.json').read_text())
     report = {'started': datetime.datetime.now(datetime.timezone.utc).isoformat(), 'release': distribution['release'],
               'distribution_release': distribution['release'],
               'status': 'installing', 'completed_phases': [], 'application_url': 'https://' + config['public_hostname'],
               'production_ready': False, 'interactive_login_verified': False}
+    report['recovery_connections_active'] = recovery_connections
     save(WORK / 'status.json', report)
     upgrade_checkpoint = None
     import upgrade_control

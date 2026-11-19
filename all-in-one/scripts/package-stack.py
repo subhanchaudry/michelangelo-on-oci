@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Package explicit source inputs, preserve immutable releases, and verify the core."""
 import argparse
+import ast
 import hashlib
 import importlib.util
 import json
@@ -11,10 +12,31 @@ import zipfile
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def verify_installer_imports(root, files):
+    """Reject an allowlist that omits a locally imported installer module."""
+    for name, data in files.items():
+        if not (name.startswith('installer/') and name.count('/') == 1 and name.endswith('.py')):
+            continue
+        for node in ast.walk(ast.parse(data, filename=name)):
+            if isinstance(node, ast.Import):
+                modules = [alias.name.split('.')[0] for alias in node.names]
+            elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
+                modules = [node.module.split('.')[0]]
+            else:
+                continue
+            for module in modules:
+                dependency = 'installer/' + module + '.py'
+                if (root / dependency).is_file() and dependency not in files:
+                    raise ValueError('Missing installer module in package: ' + dependency + ' (imported by ' + name + ')')
+
+
 def documentation(repository):
     """Keep the README's local diagram and guide links usable in every ZIP."""
-    names = ['README.md', 'docs/architecture.md', 'docs/architecture.svg',
-             'docs/architecture.png', 'docs/render-architecture.py']
+    names = ['README.md', 'LICENSE', 'LICENSES/Michelangelo-Apache-2.0.txt',
+             'THIRD-PARTY-NOTICES.md', 'SECURITY.md', 'docs/architecture.md',
+             'docs/architecture.svg', 'docs/architecture.png', 'docs/installation.md',
+             'docs/operations.md', 'docs/security.md', 'docs/release-notes.md',
+             'DEPENDENCIES.json']
     files = {}
     repository = repository.resolve()
     for name in names:
@@ -40,6 +62,7 @@ def payload(root=ROOT):
         if any(parent.is_symlink() for parent in path.parents if parent != root and parent.is_relative_to(root)):
             raise ValueError('Symlinked package directory: ' + name)
         files[name] = path.read_bytes()
+    verify_installer_imports(root, files)
     # The inherited verifier checks every nested payload hash, its inventory,
     # relative documentation links and the absence of inherited site acceptance.
     verifier = root / 'installer/release/scripts/verify-review-bundle.py'
@@ -58,7 +81,7 @@ def payload(root=ROOT):
         if any(b'-----BEGIN ' + kind + b'PRIVATE KEY-----' in data for kind in (b'', b'RSA ', b'EC ', b'OPENSSH ', b'ENCRYPTED ')):
             raise ValueError('Private key in package input: ' + name)
     metadata = json.loads(files['CONSOLIDATION.json'])
-    manifest = {'format': 'Michelangelo OCI consolidated stack v1', 'release': metadata['release'],
+    manifest = {'format': 'Michelangelo OCI consolidated stack v1', 'release': metadata['release'], 'profile': 'all-in-one',
                 'production_ready': False, 'files': {n: hashlib.sha256(v).hexdigest() for n, v in sorted(files.items())}}
     files['SOURCE-MANIFEST.json'] = (json.dumps(manifest, indent=2) + '\n').encode()
     return files
@@ -76,7 +99,7 @@ def foundation_payload(profile):
             raise ValueError('Unsafe foundation path: ' + name)
         files[name] = path.read_bytes()
     files.update(documentation(ROOT.parent))
-    files['SOURCE-MANIFEST.json'] = (json.dumps({'profile': profile, 'files': {
+    files['SOURCE-MANIFEST.json'] = (json.dumps({'profile': profile, 'release': json.loads((ROOT/'CONSOLIDATION.json').read_text())['release'], 'files': {
         n: hashlib.sha256(v).hexdigest() for n, v in sorted(files.items())}}, indent=2) + '\n').encode()
     return files
 

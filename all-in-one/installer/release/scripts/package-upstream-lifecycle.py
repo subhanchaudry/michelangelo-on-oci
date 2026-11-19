@@ -56,7 +56,7 @@ def main():
                 with fsspec.open(uri,'rb') as stream:
                     if hashlib.sha256(stream.read()).hexdigest()!=sha:raise RuntimeError('Published package integrity mismatch')
             env={'UF_STORAGE_URL':a.storage_url.rstrip('/')+'/'+namespace+'/workflows','UF_TASK_IMAGE':a.task_image,'UF_PLUGIN_RAY_USE_FSSPEC':'1','IMAGE_PULL_POLICY':'IfNotPresent','REGISTRY_NAMESPACE':namespace,'REGISTRY_ENDPOINT':a.registry_endpoint,'MA_PILOT_CLUSTER_TARGET':json.dumps(cluster,separators=(',',':'))}
-            env.update(HOME='/tmp',HF_HOME='/tmp/huggingface',XDG_CACHE_HOME='/tmp/cache')
+            env.update(HOME='/tmp',HF_HOME='/tmp/huggingface',XDG_CACHE_HOME='/tmp/cache',GRPC_DNS_RESOLVER='native')
             annotations={'michelangelo/uniflow-image':a.task_image,'michelangelo.ai/demo':demo,'michelangelo.ai/workflow-package-sha256':sha}
             if entry['operation']=='train-register':env['MA_REGISTER_LIFECYCLE']='true'
             else:annotations['michelangelo.ai/lifecycle-operation']=entry['operation']

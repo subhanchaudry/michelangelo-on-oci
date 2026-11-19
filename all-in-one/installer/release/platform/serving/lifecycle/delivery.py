@@ -12,6 +12,7 @@ import os
 from pathlib import Path
 import re
 import shutil
+import socket
 import tempfile
 import time
 from urllib.parse import urlsplit
@@ -23,13 +24,14 @@ LOG = logging.getLogger('model-delivery')
 
 
 class Delivery:
-    def __init__(self, storage, bucket, prefix, repository, triton='http://127.0.0.1:8000'):
+    def __init__(self, storage, bucket, prefix, repository, triton='http://127.0.0.1:8000', replica=None):
         self.storage = storage
         self.bucket = bucket
         self.prefix = prefix.rstrip('/') + '/'
         self.repository = Path(repository)
         self.triton = triton
         self.loaded = {}
+        self.replica = socket.gethostname() if replica is None else replica
 
     def request(self, path, method='GET'):
         with urlopen(Request(self.triton + path, data=b'{}' if method == 'POST' else None,
@@ -41,16 +43,27 @@ class Delivery:
         if not isinstance(entries, list) or len(entries) > 2:
             raise PackageError('Expected at most two revisions during operator rollout')
         desired = {}
+        seen = set()
         for entry in entries:
             name = entry['name']
-            if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_-]{0,127}', name) or name in desired:
+            if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_-]{0,127}', name) or name in seen:
                 raise PackageError('Invalid or duplicate Triton model name')
+            seen.add(name)
             uri = urlsplit(entry['storage_path'])
             checksum = entry.get('sha256', '')
             if (uri.scheme != 's3' or uri.netloc != self.bucket or uri.query or uri.fragment
                     or not uri.path.lstrip('/').startswith(self.prefix)
                     or not re.fullmatch(r'[0-9a-f]{64}', checksum)):
                 raise PackageError('Model package is outside the permitted artifact scope or lacks checksum')
+            phase = entry.get('phase') or 'serving'
+            if phase not in ('canary', 'staged', 'serving'):
+                raise PackageError('Unknown model rollout phase')
+            if phase == 'canary':
+                canary = entry.get('canary_pod', '')
+                if not isinstance(canary, str) or not re.fullmatch(r'[a-z0-9][a-z0-9.-]{0,252}', canary):
+                    raise PackageError('Canary model requires a valid selected replica')
+                if canary != self.replica:
+                    continue
             desired[name] = (uri.path.lstrip('/'), checksum)
         return desired
 

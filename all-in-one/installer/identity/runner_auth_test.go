@@ -6,7 +6,7 @@ import (
 )
 
 func TestRuntimeCoarseAuthorization(t *testing.T) {
-	ctx := WithPrincipal(context.Background(), Principal{Enabled: true, Service: true, Role: "operator", Subject: "system:serviceaccount:default:michelangelo-lifecycle-runner"})
+	ctx := WithOCIPrincipal(context.Background(), OCIPrincipal{Enabled: true, Service: true, Role: "operator", Subject: "system:serviceaccount:default:michelangelo-lifecycle-runner"})
 	for _, resource := range []string{"Model", "EvaluationReport", "ModelFamily", "PipelineRun", "InferenceServer", "Deployment", "Cluster", "Project", "RayJob", "Pipeline"} {
 		for _, action := range []Action{Create, Get, Update, Delete, List, DeleteCollection} {
 			want := action == Get && (resource == "Model" || resource == "EvaluationReport" || resource == "ModelFamily" || resource == "PipelineRun" || resource == "InferenceServer" || resource == "Deployment") || action == Create && (resource == "Model" || resource == "EvaluationReport" || resource == "ModelFamily") || action == Update && (resource == "InferenceServer" || resource == "Deployment")

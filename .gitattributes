@@ -1,0 +1,3 @@
+# Unified patch context deliberately starts with a space before source tabs.
+# Reconstructed source is checked independently with git diff --check.
+all-in-one/installer/sources/*/compatibility.patch -whitespace

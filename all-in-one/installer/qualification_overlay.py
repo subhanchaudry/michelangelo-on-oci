@@ -93,7 +93,7 @@ func setupK8s() (ctrlRTClient.Client, error) {
     if 'func qualifiedTestContext()' not in text:
         text=text.replace('"context"','"context"\n "github.com/michelangelo-ai/michelangelo/go/auth"',1)
         text=text.replace('context.Background()', 'qualifiedTestContext()')
-        text+='\nfunc qualifiedTestContext() context.Context { return auth.WithPrincipal(context.Background(), auth.Principal{ID:"test-operator", Subject:"test-operator", Email:"test@example.com", Role:"operator", Enabled:true}) }\n'
+        text+='\nfunc qualifiedTestContext() context.Context { return auth.WithOCIPrincipal(context.Background(), auth.OCIPrincipal{ID:"test-operator", Subject:"test-operator", Email:"test@example.com", Role:"operator", Enabled:true}) }\n'
         text=text.replace('assert.Equal(t, "test", updatedJob.Spec.User.Name)', 'assert.Equal(t, "test@example.com", updatedJob.Spec.User.Name)')
         # User attribution is immutable; exercise a real mutable spec field instead.
         text=text.replace('job.Spec.User = &v2pb.UserInfo{', 'job.Spec.JobId = "updated-job-id"\n job.Spec.User = &v2pb.UserInfo{')
@@ -145,7 +145,7 @@ import (
  "github.com/michelangelo-ai/michelangelo/go/auth"
 )
 func qualifiedControllerContext() context.Context {
- return auth.WithPrincipal(context.Background(), auth.Principal{ID:"controller-test",Subject:"system:serviceaccount:ma-system:michelangelo",Enabled:true,Service:true,Role:"operator"})
+ return auth.WithOCIPrincipal(context.Background(), auth.OCIPrincipal{ID:"controller-test",Subject:"system:serviceaccount:ma-system:michelangelo",Enabled:true,Service:true,Role:"operator"})
 }
 ''')
     path=Path(source)/'go/components/deployment/controller_test.go'

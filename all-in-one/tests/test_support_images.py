@@ -96,9 +96,9 @@ class SupportImageTests(unittest.TestCase):
         env={**transport_env(),'MYSQL_ROUTER_IMAGE':'container-registry.oracle.com/mysql/community-router@sha256:'+'a'*64}
         self.assertEqual(mysql_router.settings(env)[0],env['MYSQL_ROUTER_IMAGE'])
 
-    def test_router_updates_only_reviewed_libraries_and_keeps_default_identity(self):
+    def test_router_keeps_pinned_series_and_default_identity(self):
         text=(ROOT/'installer/router-runtime.Dockerfile').read_text()
-        self.assertIn('@sha256:d704471c2bb78fa833790dc197959c004d09af5aa18f5f153ff40e7268f54043',text)
+        self.assertIn('@sha256:3de30bd493403d2cc87f0a1070686911ded03e473161c4c235bddfe03dfc0d3b',text)
         command=next(line for line in text.splitlines() if line.startswith('RUN '))
         self.assertNotIn('mysql-router',command)
         self.assertIn("--disablerepo='mysql*'",command)

@@ -33,3 +33,8 @@ subprocess.run([sys.executable, '-c',
     'app=web.Application();assert URL("http://localhost").with_query(a=1).query["a"] == "1"', str(vendor)], check=True)
 if [p.name for p in vendor.glob('aiohttp-*.dist-info')] != ['aiohttp-3.14.4.dist-info']:
     raise RuntimeError('Ray vendored dependency metadata is inconsistent')
+# These images execute Python Ray tasks and the Python inference backend.
+# Do not ship the unused Java worker and its separate dependency closure.
+jars = root / 'ray/jars'
+if jars.is_dir():
+    shutil.rmtree(jars)

@@ -12,6 +12,7 @@ ROOT=Path(__file__).resolve().parents[1]
 spec=importlib.util.spec_from_file_location('workload_security',ROOT/'installer/workload_security.py')
 security=importlib.util.module_from_spec(spec);spec.loader.exec_module(security)
 IMAGE='registry.example.com/examples@sha256:'+'a'*64
+RENEWAL_IMAGE='registry.example.com/identity@sha256:'+'b'*64
 
 
 def admission_cases():
@@ -21,7 +22,7 @@ def admission_cases():
          'volumes':[{'name':'ray','emptyDir':{}}],'imagePullSecrets':[{'name':'ma-lifecycle-runtime-registry'}]}
     cluster={'headGroupSpec':{'template':{'spec':copy.deepcopy(pod)}},
              'workerGroupSpecs':[{'groupName':n,'template':{'spec':copy.deepcopy(pod)}} for n in ('first','second')]}
-    expressions={x['metadata']['name'].removeprefix(security.POLICY+'-'):x['spec']['validations'][0]['expression'] for x in security.documents(IMAGE) if x['kind']=='ValidatingAdmissionPolicy'}
+    expressions={x['metadata']['name'].removeprefix(security.POLICY+'-'):x['spec']['validations'][0]['expression'] for x in security.documents(IMAGE, RENEWAL_IMAGE) if x['kind']=='ValidatingAdmissionPolicy'}
     cases=[]
     def add(name,resource,value,allowed):cases.append({'Name':name,'Expression':expressions[resource],'Object':{'spec':value},'Allowed':allowed})
     add('valid cluster','rayclusters',copy.deepcopy(cluster),True)
@@ -67,6 +68,14 @@ def admission_cases():
                         'REPLACE_TOKEN_SECRET':'cluster-oci-'+short+'-client-token','REPLACE_RENEWAL_JOB_NAME':account+'-token-renew',
                         'REPLACE_SYSTEM_NODE_LABEL':'workload.oci.oracle.com/pool','REPLACE_SYSTEM_NODE_VALUE':'system'}.items():rendered=rendered.replace(old,new)
         cron=list(yaml.safe_load_all(rendered))[-1]
+        renewal_pod=cron['spec']['jobTemplate']['spec']['template']['spec']
+        legacy_image=renewal_pod['containers'][0]['image']
+        renewal_pod['containers'][0]['image']=RENEWAL_IMAGE
+        renewal_pod['imagePullSecrets']=[{'name':'ma-lifecycle-runtime-registry'}]
+        bad=copy.deepcopy(cron['spec']);bad['jobTemplate']['spec']['template']['spec']['containers'][0]['image']=legacy_image
+        add(short+' obsolete renewal image','cronjobs',bad,False)
+        bad=copy.deepcopy(cron['spec']);bad['jobTemplate']['spec']['template']['spec']['imagePullSecrets']=[{'name':'unapproved-registry'}]
+        add(short+' unapproved renewal registry','cronjobs',bad,False)
         add(short+' renewal CronJob','cronjobs',cron['spec'],True)
         add(short+' renewal Job','jobs',cron['spec']['jobTemplate']['spec'],True)
         bad=copy.deepcopy(cron['spec']);bad['jobTemplate']['spec']['template']['spec']['containers'][0]['args']=['steal token']
@@ -140,6 +149,25 @@ class WorkloadSecurityTests(unittest.TestCase):
         pod['tolerations'][0]['tolerationSeconds']=3600
         self.assertNotEqual(security.execution_profile(template),security.execution_profile(pod))
 
+    def test_volume_and_probe_defaults_preserve_security_relevant_changes(self):
+        template={'containers':[{'name':'api','image':IMAGE,
+            'startupProbe':{'exec':{'command':['/bin/check']},'failureThreshold':60}}],
+            'volumes':[{'name':'config','configMap':{'name':'approved'}},
+                       {'name':'credentials','secret':{'secretName':'approved','defaultMode':256}}]}
+        actual=copy.deepcopy(template)
+        actual['volumes'][0]['configMap']['defaultMode']=420
+        actual['containers'][0]['startupProbe'].update(timeoutSeconds=1,periodSeconds=10,successThreshold=1)
+        self.assertEqual(security.execution_profile(template),security.execution_profile(actual))
+        for change in (
+            lambda p:p['volumes'][0]['configMap'].update(defaultMode=511),
+            lambda p:p['volumes'][0]['configMap'].update(name='unapproved'),
+            lambda p:p['volumes'][1]['secret'].update(defaultMode=420),
+            lambda p:p['containers'][0]['startupProbe'].update(timeoutSeconds=60),
+            lambda p:p['containers'][0]['startupProbe']['exec'].update(command=['/bin/other']),
+        ):
+            modified=copy.deepcopy(actual);change(modified)
+            self.assertNotEqual(security.execution_profile(template),security.execution_profile(modified))
+
     def test_only_standard_bounded_api_projection_is_normalized(self):
         template={'containers':[{'name':'api','image':IMAGE}]}
         pod=copy.deepcopy(template);pod['volumes']=[{'name':'kube-api-access-sample','projected':{
@@ -157,7 +185,7 @@ class WorkloadSecurityTests(unittest.TestCase):
             self.assertNotEqual(security.execution_profile(template),security.execution_profile(modified))
 
     def test_all_policies_fail_closed_and_have_no_caller_exemption(self):
-        for policy in security.documents(IMAGE):
+        for policy in security.documents(IMAGE, RENEWAL_IMAGE):
             if policy['kind']=='ValidatingAdmissionPolicy':
                 self.assertEqual(policy['spec']['failurePolicy'],'Fail')
                 self.assertEqual(policy['spec']['validations'][0]['reason'],'Forbidden')

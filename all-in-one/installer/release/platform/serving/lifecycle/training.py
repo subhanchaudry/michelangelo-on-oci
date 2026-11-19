@@ -30,11 +30,11 @@ def configurations(demo, settings):
             if key=='weights':
                 if not isinstance(value,list) or len(value)!=5 or any(type(x) not in (float,int) or not 0.01<=x<=5 for x in value): raise ValueError('Invalid fraud weights')
             elif type(value) not in (int,float) or not math.isfinite(value) or not bounds[key][0]<=value<=bounds[key][1]:
-                raise ValueError('Experiment setting outside CPU pilot bounds: '+key)
+                raise ValueError('Experiment setting outside CPU limits: '+key)
             elif key in ('epochs','dimensions','max_depth','rounds') and type(value) is not int:
                 raise ValueError('Integer experiment setting required: '+key)
         if demo=='bert-cola-finetuning' and (config['epochs']!=1 or config['learning_rate']>0.0001):
-            raise ValueError('BERT pilot is limited to one epoch at learning rate <=0.0001')
+            raise ValueError('BERT example is limited to one epoch at learning rate <=0.0001')
     return values
 
 
