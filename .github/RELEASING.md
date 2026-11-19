@@ -29,9 +29,9 @@ python3 -B scripts/release-gate.py init \
 
 Initialization creates pending records. Complete entries only from observed, reviewed results and hash-bound evidence. Use `check` with identical arguments to evaluate the records. Evidence paths must remain inside their respective record directory.
 
-Four second-human access exercises are explicitly excluded by the release owner's instruction. They are never reported as passed. Automated authorization and revocation regressions remain required. Studio logs and outputs are verified separately from upstream resource panels labeled Coming soon.
+The public-release acceptance profile records its explicit access-check exclusions. Report exclusions separately from completed checks. Automated authorization and revocation regressions remain required. Studio logs and outputs are verified separately from upstream resource panels labeled Coming soon.
 
-The public-release profile requires complete fresh installation, rerun, lifecycle, failure/recovery, independent full-site restoration, notifications, source review, and inventory evidence. It does not require migration of the existing pilot, and never authorizes cutover or resource deletion.
+The public-release profile requires complete fresh installation, rerun, lifecycle, failure/recovery, independent full-site restoration, notifications, source review, and inventory evidence. It does not require migration of an existing installation, and never authorizes cutover or resource deletion.
 
 ## Security and provenance
 
@@ -43,4 +43,4 @@ The `package_source_provenance` record must show the final Git revision, clean c
 
 ## Handoff
 
-Prepare the private release PR, downloadable ZIPs and checksums, dependency inventory, and private verification report. Retain upstream licenses and notices. Do not publish raw evidence or private deployment values. Merge, publish the release, and change repository visibility only after the release owner's final review.
+Prepare the release pull request, downloadable ZIPs and checksums, dependency inventory, and protected verification report. Retain upstream licenses and notices. Do not publish raw evidence or private deployment values. Merge, publish the release, and change repository visibility only after the release owner's final review.

@@ -30,6 +30,14 @@ Before a consistent recovery checkpoint, pause submissions and schedules, drain 
 
 Preserve new writes before reverting to an older database. This distribution does not automatically migrate an existing site's history or delete its resources.
 
+### Resource metadata reconciliation
+
+Preserve the destination's original database, configuration, resource inventory, and deployment replica settings before changing recovered connections. Keep submissions, schedules, workflow execution, and serving paused during reconciliation.
+
+Compare source and destination catalog entries by resource kind, namespace, name, persisted metadata identity, and ownership references. Independent workflow runs can produce different catalogs. Review shared entries, source-only entries, and destination-only entries explicitly; similar generated names do not establish a mapping. Preserve the source history and the destination's rollback material. Stop for review when a mapping, finalizer, or dependent workload is unresolved.
+
+After reconciliation, start the application through the normal installer and confirm historical workflow access, artifact integrity, and model execution. Rerun installation and confirm that recovered connections and data persist before completing the recovery cutover.
+
 ### Retaining restored connections
 
 After restoring and verifying the database and artifact inventory, retain the recovered connections in `/opt/michelangelo/.runtime/recovery-connections.json` on the destination build host. The installer reads this protected profile on every installation, including when Terraform supplies the original site configuration again. It writes the effective configuration back to the protected installer configuration file. The destination keeps its cluster, OCI IAM client, registry access, network settings, and region.

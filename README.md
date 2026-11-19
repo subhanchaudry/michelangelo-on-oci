@@ -10,6 +10,8 @@ The distribution combines pinned upstream source with OCI deployment infrastruct
 
 ![Michelangelo on OCI architecture](docs/architecture.svg)
 
+[Architecture guide](docs/architecture.md) · [Download diagram (PNG)](docs/architecture.png)
+
 ## Choose a deployment path
 
 | Package | Includes | Use |
@@ -28,6 +30,8 @@ Use **all-in-one** for a complete installation. Each path owns an independent Te
 4. Follow the [operations guide](docs/operations.md) for access, model workflows, monitoring, backup, and recovery.
 
 ## Documentation
+
+The guides cover the all-in-one installation and the separate infrastructure foundations.
 
 - [Architecture](docs/architecture.md): components, request flows, and deployment boundaries.
 - [Installation](docs/installation.md): local Terraform and OCI Resource Manager instructions.

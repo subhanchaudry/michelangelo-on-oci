@@ -12,11 +12,13 @@ This view documents the source of the all-in-one **0.13.0-oci.1** package, using
 4. **Deployment:** local Terraform or OCI Resource Manager provisions resources and invokes the public build host over SSH. Local access is restricted to the operator IPv4 `/32`; Resource Manager can use its optional private endpoint, omitted from this overview. The host builds from pinned source plus overlays, publishes images to private OCIR, and installs through the private OKE API. Runtime workloads pull images using the configured reader credentials. Publisher and reader machine accounts are separate from human Studio users. Keep the host available for reruns and upgrades; it may be stopped between installer runs.
 5. **Routing:** the public edge uses an Internet Gateway. Private subnets route OCI service-network traffic through a Service Gateway and other outbound Internet traffic through a NAT Gateway. The build host also downloads upstream source and dependencies; DNS and ACME certificate issuance are external prerequisites. Gateway routing is shown as a note to keep the component flows readable. Arrows summarize primary dependencies, not every network connection or port.
 
+6. **Monitoring:** when an owner notification address is configured, OCI Health Checks probes the public OAuth2 readiness endpoint every 60 seconds. OCI Monitoring alarms cover failed or missing edge checks, load-balancer backend health, and MySQL backup, storage, and missing-metric signals; OCI Notifications sends alerts to the confirmed owner subscription. Optional budget alerts use the configured owner address. These checks complement authenticated application and model monitoring.
+
 ## Scope and operating limits
 
 This customer-operated configuration uses one system node and two CPU workers by default. High availability and project-level team isolation are outside its scope. The upstream bundled monitoring stack is disabled; the package provides optional OCI alarms and owner notifications. See [operations](operations.md) for backup, recovery, upgrades, and resource inspection.
 
-## Evidence in the deployment source
+## Deployment source
 
 These links identify the files in the GitHub source repository; extracted release ZIPs retain this guide and its images.
 
@@ -30,4 +32,5 @@ These links identify the files in the GitHub source repository; extracted releas
 | TCP load balancer, Caddy and OAuth2 Proxy | [installer/auth.py](https://github.com/subhanchaudry/michelangelo-on-oci/blob/main/all-in-one/installer/auth.py) |
 | Persistent application identities | [installer/identity.py](https://github.com/subhanchaudry/michelangelo-on-oci/blob/main/all-in-one/installer/identity.py) |
 | Temporal, KubeRay, internal Envoy Gateway, images and Helm | [installer/install.py](https://github.com/subhanchaudry/michelangelo-on-oci/blob/main/all-in-one/installer/install.py) |
+| Optional health checks, alarms, notifications, and budget alerts | [monitoring.tf](https://github.com/subhanchaudry/michelangelo-on-oci/blob/main/all-in-one/monitoring.tf) |
 | Runtime artifact and log configuration | [installer/runtime.py](https://github.com/subhanchaudry/michelangelo-on-oci/blob/main/all-in-one/installer/runtime.py) |

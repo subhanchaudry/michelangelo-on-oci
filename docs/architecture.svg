@@ -1,9 +1,9 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1160" viewBox="0 0 1600 1160" role="img" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1320" viewBox="0 0 1600 1320" role="img" aria-labelledby="title desc">
 <title id="title">Michelangelo on OCI reference architecture</title>
-<desc id="desc">All-in-one release 0.13.0-oci.1. Public load balancer forwards TCP to Caddy and OAuth2 Proxy on private OKE nodes. OCI IAM authenticates users. Studio, API, controllers and Temporal coordinate Ray training and private Triton serving. MySQL persists metadata, workflow state and identities. Object Storage stores artifacts and lifecycle logs; OCIR holds images. A public build host installs through the private OKE API. The default topology has one system node and two CPU workers; select availability and capacity settings for your workload.</desc>
+<desc id="desc">All-in-one release 0.13.0-oci.1. Public load balancer forwards TCP to Caddy and OAuth2 Proxy on private OKE nodes. OCI IAM authenticates users. Studio, API, controllers and Temporal coordinate Ray training and private Triton serving. MySQL persists metadata, workflow state and identities. Object Storage stores artifacts and lifecycle logs; OCIR holds images. A public build host installs through the private OKE API. Optional OCI Health Checks monitors the public edge and Monitoring sends alarms through OCI Notifications. The default topology has one system node and two CPU workers; select availability and capacity settings for your workload.</desc>
 <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#356b85"/></marker></defs>
 <style>text{font-family:Arial,Helvetica,sans-serif;fill:#172b3a}.title{font-size:36px;font-weight:700}.subtitle{font-size:18px;fill:#526674}.zone{font-size:17px;font-weight:700;letter-spacing:.5px}.heading{font-size:20px;font-weight:700}.body{font-size:17px}.small{font-size:15px;fill:#526674}.label{font-size:15px;fill:#294f66}</style>
-<rect width="1600" height="1160" fill="#fff"/>
+<rect width="1600" height="1320" fill="#fff"/>
 <rect x="40" y="36" width="6" height="68" fill="#b64031"/>
 
 <text x="64" y="65" class="title">Michelangelo on OCI</text>
@@ -17,7 +17,7 @@
 <rect x="1170" y="145" width="360" height="100" rx="12" fill="#fff" stroke="#91a8b8" stroke-width="1.5" stroke-dasharray=""/>
 <text x="1188" y="175" class="heading">OCI IAM identity domain</text>
 <text x="1188" y="203" class="body">OIDC sign-in • invited users</text>
-<rect x="40" y="300" width="1520" height="720" rx="12" fill="#f7f9fb" stroke="#91a8b8" stroke-width="1.5" stroke-dasharray=""/>
+<rect x="40" y="300" width="1520" height="880" rx="12" fill="#f7f9fb" stroke="#91a8b8" stroke-width="1.5" stroke-dasharray=""/>
 <text x="60" y="328" class="zone">OCI REGION / COMPARTMENT</text>
 <rect x="60" y="348" width="1120" height="648" rx="12" fill="#fff" stroke="#91a8b8" stroke-width="1.5" stroke-dasharray=""/>
 <text x="80" y="376" class="zone">VIRTUAL CLOUD NETWORK</text>
@@ -43,6 +43,7 @@
 <text x="398" y="684" class="body">Controller • worker</text>
 <text x="398" y="708" class="body">Temporal workflows</text>
 <text x="398" y="732" class="body">Lifecycle log reader</text>
+<text x="398" y="756" class="body">MySQL Router sidecar</text>
 <rect x="705" y="602" width="200" height="168" rx="12" fill="#fff" stroke="#8bb0c4" stroke-width="1.5" stroke-dasharray=""/>
 <text x="723" y="632" class="heading">Training / batch</text>
 <text x="723" y="660" class="body">KubeRay • Ray jobs</text>
@@ -82,6 +83,16 @@
 <text x="1238" y="908" class="body">TLS certificates: OKE PVC</text>
 <text x="1238" y="932" class="body">Separate logs bucket created</text>
 <text x="1238" y="956" class="body">Log bucket not wired to runtime</text>
+<rect x="80" y="1018" width="1080" height="142" rx="12" fill="#f5f2fa" stroke="#b0a0c0" stroke-width="1.5" stroke-dasharray=""/>
+<text x="98" y="1040" class="zone">OPTIONAL OCI MONITORING</text>
+<rect x="100" y="1050" width="425" height="94" rx="12" fill="#fff" stroke="#b0a0c0" stroke-width="1.5" stroke-dasharray=""/>
+<text x="118" y="1080" class="heading">Health Checks + Monitoring</text>
+<text x="118" y="1108" class="body">HTTPS readiness • backend health</text>
+<text x="118" y="1132" class="body">MySQL backup / storage / missing metrics</text>
+<rect x="650" y="1050" width="485" height="94" rx="12" fill="#fff" stroke="#b0a0c0" stroke-width="1.5" stroke-dasharray=""/>
+<text x="668" y="1080" class="heading">OCI Notifications</text>
+<text x="668" y="1108" class="body">Confirmed owner subscription • alarm events</text>
+<text x="668" y="1132" class="body">Optional budget alerts use the owner email</text>
 <polyline points="340,245 340,434" fill="none" stroke="#356b85" stroke-width="2" marker-end="url(#arrow)"/>
 <polyline points="210,498 210,602" fill="none" stroke="#356b85" stroke-width="2" marker-end="url(#arrow)"/>
 <polyline points="330,674 380,674" fill="none" stroke="#356b85" stroke-width="2" marker-end="url(#arrow)"/>
@@ -95,6 +106,8 @@
 <polyline points="1220,518 1198,518 1198,588 1060,588 1060,602" fill="none" stroke="#356b85" stroke-width="2" marker-end="url(#arrow)"/>
 <polyline points="1140,710 1220,710" fill="none" stroke="#356b85" stroke-width="2" marker-end="url(#arrow)"/>
 <polyline points="805,770 805,816 1200,816 1200,744 1220,744" fill="none" stroke="#356b85" stroke-width="2" marker-end="url(#arrow)"/>
+<polyline points="100,1102 72,1102 72,467 100,467" fill="none" stroke="#356b85" stroke-width="2" marker-end="url(#arrow)"/>
+<polyline points="525,1100 650,1100" fill="none" stroke="#356b85" stroke-width="2" marker-end="url(#arrow)"/>
 <rect x="349" y="263" width="162.0" height="20" rx="2" fill="#fff" stroke="#fff" stroke-width="1.5" stroke-dasharray=""/>
 <text x="352" y="278" class="label">HTTPS • DNS hostname</text>
 <rect x="219" y="523" width="123.0" height="20" rx="2" fill="#fff" stroke="#fff" stroke-width="1.5" stroke-dasharray=""/>
@@ -121,9 +134,13 @@
 <text x="1161" y="698" class="label">Read</text>
 <rect x="868" y="799" width="177.6" height="20" rx="2" fill="#fff" stroke="#fff" stroke-width="1.5" stroke-dasharray=""/>
 <text x="871" y="814" class="label">Write artifacts / logs</text>
-<text x="84" y="1038" class="small">Solid arrows: application traffic and data</text>
-<text x="560" y="1038" class="small">Dashed arrows: deployment and image publication</text>
-<text x="84" y="1078" class="body">Default topology: one system node + two CPU workers. GPU workloads and high availability require a separate configuration.</text>
-<text x="84" y="1106" class="small">Optional OCI alarms and owner notifications. MySQL: seven-day backups + PITR. No project-level team isolation.</text>
-<text x="84" y="1134" class="small">Sources: all-in-one Terraform and installer • upstream v0.13.0 + OCI overlays • distribution 0.13.0-oci.1</text>
+<rect x="107" y="993" width="169.79999999999998" height="20" rx="2" fill="#fff" stroke="#fff" stroke-width="1.5" stroke-dasharray=""/>
+<text x="110" y="1008" class="label">HTTPS readiness probe</text>
+<rect x="555" y="1073" width="52.8" height="20" rx="2" fill="#fff" stroke="#fff" stroke-width="1.5" stroke-dasharray=""/>
+<text x="558" y="1088" class="label">Alarms</text>
+<text x="84" y="1206" class="small">Solid arrows: application traffic and data</text>
+<text x="560" y="1206" class="small">Dashed arrows: deployment and image publication</text>
+<text x="84" y="1244" class="body">Default topology: one system node + two CPU workers. GPU workloads and high availability require a separate configuration.</text>
+<text x="84" y="1272" class="small">Optional OCI alarms and owner notifications. MySQL: seven-day backups + PITR. No project-level team isolation.</text>
+<text x="84" y="1300" class="small">Sources: all-in-one Terraform and installer • upstream v0.13.0 + OCI overlays • distribution 0.13.0-oci.1</text>
 </svg>
